@@ -62,6 +62,21 @@ in {
     ];
   };
 
+  futureControls = mkTestHost {
+    modules = [
+      ../controls/_network-segmentation.nix
+      ../controls/_change-management.nix
+      ../controls/_key-management.nix
+      ../controls/_secure-boot.nix
+      {
+        compliance.controls.networkSegmentation.enable = true;
+        compliance.controls.changeManagement.enable = true;
+        compliance.controls.keyManagement.enable = true;
+        compliance.controls.secureBoot.enable = true;
+      }
+    ];
+  };
+
   disabled = mkTestHost {
     modules = [
       ../frameworks/nis2.nix

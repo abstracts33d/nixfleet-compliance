@@ -172,6 +172,25 @@
           }
         ];
 
+        eval-future-controls-standalone = mkEvalCheck "future-controls-standalone" [
+          {
+            check = fleet.futureControls.compliance.controls.networkSegmentation.enable;
+            msg = "Network segmentation control works standalone";
+          }
+          {
+            check = fleet.futureControls.compliance.controls.changeManagement.enable;
+            msg = "Change management control works standalone";
+          }
+          {
+            check = fleet.futureControls.compliance.controls.keyManagement.enable;
+            msg = "Key management control works standalone";
+          }
+          {
+            check = fleet.futureControls.compliance.controls.secureBoot.enable;
+            msg = "Secure boot control works standalone";
+          }
+        ];
+
         eval-evidence-collector = mkEvalCheck "evidence-collector" [
           {
             check = fleet.nis2Essential.compliance.evidence.collector.enable;
