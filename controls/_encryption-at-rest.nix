@@ -80,16 +80,25 @@ in {
             tmp_is_tmpfs=false
           fi
 
+          tmp_on_tmpfs=$tmp_is_tmpfs
+          if [ "$tmp_on_tmpfs" = "true" ] && [ "$swap_encrypted" = "true" ]; then
+            compliant=true
+          else
+            compliant=false
+          fi
+
           jq -n \
             --argjson luks_count "$luks_count" \
             --argjson swap_encrypted "$swap_encrypted" \
             --arg swap_status "$swap_status" \
             --argjson tmp_is_tmpfs "$tmp_is_tmpfs" \
+            --argjson compliant "$compliant" \
             '{
               luks_device_count: $luks_count,
               swap_encrypted: $swap_encrypted,
               swap_status: $swap_status,
-              tmp_on_tmpfs: $tmp_is_tmpfs
+              tmp_on_tmpfs: $tmp_is_tmpfs,
+              compliant: $compliant
             }'
         '';
       };

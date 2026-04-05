@@ -94,6 +94,8 @@ in {
             inputs_fresh=false
           fi
 
+          compliant=$inputs_fresh
+
           jq -n \
             --argjson has_revision "$has_revision" \
             --argjson sbom_exists "$sbom_exists" \
@@ -101,13 +103,15 @@ in {
             --argjson lock_age_days "$lock_age_days" \
             --argjson inputs_fresh "$inputs_fresh" \
             --arg config_revision "$config_rev" \
+            --argjson compliant "$compliant" \
             '{
               has_configuration_revision: $has_revision,
               sbom_generated: $sbom_exists,
               closure_package_count: $package_count,
               flake_lock_age_days: $lock_age_days,
               inputs_fresh: $inputs_fresh,
-              configuration_revision: $config_revision
+              configuration_revision: $config_revision,
+              compliant: $compliant
             }'
         '';
       };

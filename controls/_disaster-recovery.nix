@@ -82,6 +82,8 @@ in {
 
           system_uptime_hours=$(awk '{printf "%.0f", $1/3600}' /proc/uptime 2>/dev/null || echo "unknown")
 
+          compliant=$meets_min_generations
+
           jq -n \
             --argjson generations_count "$generations_count" \
             --argjson meets_min_generations "$meets_min_generations" \
@@ -89,13 +91,15 @@ in {
             --arg oldest_generation_age_days "$oldest_generation_age_days" \
             --arg rto_target "$rto_target" \
             --arg system_uptime_hours "$system_uptime_hours" \
+            --argjson compliant "$compliant" \
             '{
               generations_count: $generations_count,
               meets_min_generations: $meets_min_generations,
               newest_generation_age_hours: $newest_generation_age_hours,
               oldest_generation_age_days: $oldest_generation_age_days,
               rto_target: $rto_target,
-              system_uptime_hours: $system_uptime_hours
+              system_uptime_hours: $system_uptime_hours,
+              compliant: $compliant
             }'
         '';
       };

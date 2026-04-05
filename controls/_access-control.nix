@@ -101,6 +101,12 @@ in {
             fi
           done
 
+          if [ "$password_auth_disabled" = "true" ] && [ "$root_login_restricted" = "true" ]; then
+            compliant=true
+          else
+            compliant=false
+          fi
+
           jq -n \
             --argjson password_auth_disabled "$password_auth_disabled" \
             --argjson root_login_restricted "$root_login_restricted" \
@@ -108,13 +114,15 @@ in {
             --argjson idle_timeout_seconds "$alive_interval" \
             --argjson sudo_users "$sudo_users" \
             --argjson ssh_key_count "$ssh_key_count" \
+            --argjson compliant "$compliant" \
             '{
               password_auth_disabled: $password_auth_disabled,
               root_login_restricted: $root_login_restricted,
               has_idle_timeout: $has_idle_timeout,
               idle_timeout_seconds: $idle_timeout_seconds,
               sudo_users: $sudo_users,
-              ssh_key_count: $ssh_key_count
+              ssh_key_count: $ssh_key_count,
+              compliant: $compliant
             }'
         '';
       };

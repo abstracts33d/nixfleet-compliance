@@ -76,6 +76,18 @@ in {
             service_accounts_over_threshold=false
           fi
 
+          if [ "$mfa_policy_required" = "false" ]; then
+            compliant=true
+          else
+            # MFA required — check if any MFA PAM module is present
+            has_mfa=$(echo "$pam_modules_loaded" | jq 'map(select(test("u2f|google|duo|oath"))) | length > 0' 2>/dev/null || echo "false")
+            if [ "$has_mfa" = "true" ]; then
+              compliant=true
+            else
+              compliant=false
+            fi
+          fi
+
           jq -n \
             --argjson mfa_policy_required "$mfa_policy_required" \
             --argjson pam_modules_loaded "$pam_modules_loaded" \
@@ -83,13 +95,15 @@ in {
             --argjson system_accounts "$system_accounts" \
             --argjson system_account_count "$system_account_count" \
             --argjson service_accounts_over_threshold "$service_accounts_over_threshold" \
+            --argjson compliant "$compliant" \
             '{
               mfa_policy_required: $mfa_policy_required,
               pam_modules_loaded: $pam_modules_loaded,
               ssh_cert_auth_available: $ssh_cert_auth_available,
               system_accounts: $system_accounts,
               system_account_count: $system_account_count,
-              service_accounts_over_threshold: $service_accounts_over_threshold
+              service_accounts_over_threshold: $service_accounts_over_threshold,
+              compliant: $compliant
             }'
         '';
       };

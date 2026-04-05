@@ -82,16 +82,20 @@ in {
             ssh_host_key_exists=false
           fi
 
+          compliant=$ssh_host_key_exists
+
           jq -n \
             --arg tls_min_version "$tls_min_version" \
             --argjson cert_files_found "$cert_count" \
             --argjson certs_expiring_soon "$expiring_certs" \
             --argjson ssh_host_key_exists "$ssh_host_key_exists" \
+            --argjson compliant "$compliant" \
             '{
               tls_min_version: $tls_min_version,
               cert_files_found: $cert_files_found,
               certs_expiring_soon: $certs_expiring_soon,
-              ssh_host_key_exists: $ssh_host_key_exists
+              ssh_host_key_exists: $ssh_host_key_exists,
+              compliant: $compliant
             }'
         '';
       };

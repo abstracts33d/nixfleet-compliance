@@ -68,16 +68,24 @@ in {
             | grep -oP '[\d.]+[GMKT]' || true)
           journal_disk_usage="''${journal_disk_usage:-unknown}"
 
+          if [ "$journal_persistent" = "true" ] && [ "''${retention_configured_days:-0}" -gt 0 ]; then
+            compliant=true
+          else
+            compliant=false
+          fi
+
           jq -n \
             --argjson journal_persistent "$journal_persistent" \
             --argjson retention_configured_days "$retention_configured_days" \
             --argjson forwarding_active "$forwarding_active" \
             --arg journal_disk_usage "$journal_disk_usage" \
+            --argjson compliant "$compliant" \
             '{
               journal_persistent: $journal_persistent,
               retention_configured_days: $retention_configured_days,
               forwarding_active: $forwarding_active,
-              journal_disk_usage: $journal_disk_usage
+              journal_disk_usage: $journal_disk_usage,
+              compliant: $compliant
             }'
         '';
       };

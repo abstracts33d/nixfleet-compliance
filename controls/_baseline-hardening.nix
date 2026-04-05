@@ -112,6 +112,13 @@ in {
           done
           score=$(awk "BEGIN {printf \"%.2f\", $passed / $total}")
 
+          hardening_score="$score"
+          if [ "$hardening_score" = "1.00" ]; then
+            compliant=true
+          else
+            compliant=false
+          fi
+
           jq -n \
             --argjson dmesg_restrict "$dmesg_restrict" \
             --argjson kptr_restrict "$kptr_restrict" \
@@ -120,6 +127,7 @@ in {
             --argjson accept_redirects_disabled "$accept_redirects_disabled" \
             --argjson send_redirects_disabled "$send_redirects_disabled" \
             --arg hardening_score "$score" \
+            --argjson compliant "$compliant" \
             '{
               dmesg_restrict: $dmesg_restrict,
               kptr_restrict: $kptr_restrict,
@@ -127,7 +135,8 @@ in {
               rp_filter: $rp_filter,
               accept_redirects_disabled: $accept_redirects_disabled,
               send_redirects_disabled: $send_redirects_disabled,
-              hardening_score: $hardening_score
+              hardening_score: $hardening_score,
+              compliant: $compliant
             }'
         '';
       };

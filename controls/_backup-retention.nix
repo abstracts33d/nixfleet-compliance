@@ -76,16 +76,24 @@ in {
             backup_timer_active=false
           fi
 
+          if [ "$backup_timer_active" = "true" ] || [ "$backup_service_exists" = "true" ]; then
+            compliant=true
+          else
+            compliant=false
+          fi
+
           jq -n \
             --argjson backup_service_exists "$backup_service_exists" \
             --arg last_backup_age_hours "$last_backup_age_hours" \
             --argjson retention_policy_days "$retention_policy_days" \
             --argjson backup_timer_active "$backup_timer_active" \
+            --argjson compliant "$compliant" \
             '{
               backup_service_exists: $backup_service_exists,
               last_backup_age_hours: $last_backup_age_hours,
               retention_policy_days: $retention_policy_days,
-              backup_timer_active: $backup_timer_active
+              backup_timer_active: $backup_timer_active,
+              compliant: $compliant
             }'
         '';
       };

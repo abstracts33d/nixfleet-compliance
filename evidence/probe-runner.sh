@@ -37,12 +37,21 @@ for probe in "$probe_dir"/*; do
       status="error"
       checks="{\"error\": \"probe output is not valid JSON\"}"
     else
-      status="compliant"
-      # Check if any top-level boolean value is false (non-boolean values are ignored
-      # for compliance status — arrays, objects, strings, and numbers are informational)
-      has_false=$(echo "$probe_output" | jq '[to_entries[] | select(.value == false)] | length')
-      if [ "$has_false" -gt 0 ]; then
+      # Compliance status determination:
+      # 1. If probe outputs a "compliant" boolean field, use it directly
+      # 2. Otherwise, fall back to checking if any boolean is false
+      explicit_status=$(echo "$probe_output" | jq -r '.compliant // empty' 2>/dev/null || echo "")
+      if [ "$explicit_status" = "true" ]; then
+        status="compliant"
+      elif [ "$explicit_status" = "false" ]; then
         status="non-compliant"
+      else
+        # Fallback: any top-level false boolean = non-compliant
+        status="compliant"
+        has_false=$(echo "$probe_output" | jq '[to_entries[] | select(.value == false)] | length' 2>/dev/null || echo "0")
+        if [ "${has_false:-0}" -gt 0 ]; then
+          status="non-compliant"
+        fi
       fi
       checks="$probe_output"
     fi

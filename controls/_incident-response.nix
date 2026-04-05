@@ -71,18 +71,22 @@ in {
             journal_available=false
           fi
 
+          compliant=$journal_available
+
           jq -n \
             --argjson nixos_generations_available "$nixos_generations_available" \
             --arg current_generation "$current_generation" \
             --arg oldest_generation_days "$oldest_generation_days" \
             --argjson rollback_available "$rollback_available" \
             --argjson journal_available "$journal_available" \
+            --argjson compliant "$compliant" \
             '{
               nixos_generations_available: $nixos_generations_available,
               current_generation: $current_generation,
               oldest_generation_days: $oldest_generation_days,
               rollback_available: $rollback_available,
-              journal_available: $journal_available
+              journal_available: $journal_available,
+              compliant: $compliant
             }'
         '';
       };

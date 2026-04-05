@@ -59,6 +59,8 @@ in {
 
           nixos_version=$(cat /run/current-system/nixos-version 2>/dev/null || echo "unknown")
 
+          compliant=true
+
           jq -n \
             --arg host "$host" \
             --argjson interfaces "$interfaces" \
@@ -66,6 +68,7 @@ in {
             --argjson service_count "$service_count" \
             --arg last_config_apply "$last_config_apply" \
             --arg nixos_version "$nixos_version" \
+            --argjson compliant "$compliant" \
             '{
               host_registered: true,
               hostname: $host,
@@ -73,7 +76,8 @@ in {
               network_interfaces: $interfaces,
               running_services: $services,
               service_count: $service_count,
-              last_config_apply: $last_config_apply
+              last_config_apply: $last_config_apply,
+              compliant: $compliant
             }'
         '';
       };
