@@ -32,12 +32,20 @@ for probe in "$probe_dir"/*; do
 
   # Run probe, capture output
   if probe_output=$("$probe" 2>/dev/null); then
-    status="compliant"
-    # Check if any value in checks is false
-    if echo "$probe_output" | jq -e 'to_entries | map(select(.value == false)) | length > 0' >/dev/null 2>&1; then
-      status="non-compliant"
+    # Validate probe output is valid JSON
+    if ! echo "$probe_output" | jq empty >/dev/null 2>&1; then
+      status="error"
+      checks="{\"error\": \"probe output is not valid JSON\"}"
+    else
+      status="compliant"
+      # Check if any top-level boolean value is false (non-boolean values are ignored
+      # for compliance status — arrays, objects, strings, and numbers are informational)
+      has_false=$(echo "$probe_output" | jq '[to_entries[] | select(.value == false)] | length')
+      if [ "$has_false" -gt 0 ]; then
+        status="non-compliant"
+      fi
+      checks="$probe_output"
     fi
-    checks="$probe_output"
   else
     status="error"
     checks="{\"error\": \"probe exited with code $?\"}"

@@ -56,7 +56,7 @@ in {
 
           ssh_cert_auth_available=$(ls /etc/ssh/ssh_host_*_key-cert.pub >/dev/null 2>&1 && echo "true" || echo "false")
 
-          system_accounts=$(awk -F: '$3 >= 1000 && $3 < 65534 {print $1}' /etc/passwd 2>/dev/null \
+          system_accounts=$(awk -F: '$3 >= 1000 && $3 < 65534 && $1 !~ /^nixbld/ {print $1}' /etc/passwd 2>/dev/null \
             | jq -R -s 'split("\n") | map(select(length > 0))')
 
           system_account_count=$(echo "$system_accounts" | jq 'length')
