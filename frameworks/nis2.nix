@@ -20,6 +20,10 @@ in {
     ../controls/_audit-logging.nix
     ../controls/_backup-retention.nix
     ../controls/_encryption-in-transit.nix
+    ../controls/_incident-response.nix
+    ../controls/_disaster-recovery.nix
+    ../controls/_vulnerability-mgmt.nix
+    ../controls/_authentication.nix
   ];
 
   options.compliance.frameworks.nis2 = {
@@ -116,6 +120,49 @@ in {
           if isEssential
           then 30
           else 60;
+      };
+
+      incidentResponse = {
+        enable = true;
+        alertRetentionDays = 365;
+        rollbackTestInterval =
+          if isEssential
+          then "weekly"
+          else "monthly";
+      };
+
+      disasterRecovery = {
+        enable = true;
+        minGenerations =
+          if isEssential
+          then 10
+          else 5;
+        rtoTarget =
+          if isEssential
+          then "4h"
+          else "24h";
+        testInterval =
+          if isEssential
+          then "monthly"
+          else "quarterly";
+      };
+
+      vulnerabilityMgmt = {
+        enable = true;
+        scanInterval =
+          if isEssential
+          then "daily"
+          else "weekly";
+        maxNixpkgsAgeDays =
+          if isEssential
+          then 14
+          else 30;
+        blockOnCritical = isEssential;
+      };
+
+      authentication = {
+        enable = true;
+        mfaRequired = isEssential;
       };
     };
 
