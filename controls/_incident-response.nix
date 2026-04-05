@@ -71,7 +71,11 @@ in {
             journal_available=false
           fi
 
-          compliant=$journal_available
+          if [ "$journal_available" = "true" ] && [ "$rollback_available" = "true" ]; then
+            compliant=true
+          else
+            compliant=false
+          fi
 
           jq -n \
             --argjson nixos_generations_available "$nixos_generations_available" \

@@ -24,6 +24,12 @@ in {
       description = "Required backup retention period in days";
     };
 
+    maxBackupAgeHours = lib.mkOption {
+      type = lib.types.int;
+      default = 48;
+      description = "Maximum hours since last backup before marking non-compliant";
+    };
+
     verifyInterval = lib.mkOption {
       type = lib.types.str;
       default = "weekly";
@@ -69,6 +75,7 @@ in {
           fi
 
           retention_policy_days=${toString cfg.retentionDays}
+          max_backup_age_hours="${toString cfg.maxBackupAgeHours}"
 
           if systemctl list-timers --all 2>/dev/null | grep -qi "backup"; then
             backup_timer_active=true
@@ -77,7 +84,11 @@ in {
           fi
 
           if [ "$backup_timer_active" = "true" ] || [ "$backup_service_exists" = "true" ]; then
-            compliant=true
+            if [ "$last_backup_age_hours" != "unknown" ] && [ "''${last_backup_age_hours:-0}" -gt "$max_backup_age_hours" ]; then
+              compliant=false
+            else
+              compliant=true
+            fi
           else
             compliant=false
           fi

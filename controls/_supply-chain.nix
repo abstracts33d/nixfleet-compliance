@@ -94,7 +94,11 @@ in {
             inputs_fresh=false
           fi
 
-          compliant=$inputs_fresh
+          if [ "$inputs_fresh" = "true" ] && ([ "$has_revision" = "true" ] || [ "$sbom_exists" = "true" ]); then
+            compliant=true
+          else
+            compliant=false
+          fi
 
           jq -n \
             --argjson has_revision "$has_revision" \

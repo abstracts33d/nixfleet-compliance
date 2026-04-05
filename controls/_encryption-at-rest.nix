@@ -81,7 +81,7 @@ in {
           fi
 
           tmp_on_tmpfs=$tmp_is_tmpfs
-          if [ "$tmp_on_tmpfs" = "true" ] && [ "$swap_encrypted" = "true" ]; then
+          if [ "$tmp_on_tmpfs" = "true" ] && [ "$swap_encrypted" = "true" ] && [ "''${luks_count:-0}" -gt 0 ]; then
             compliant=true
           else
             compliant=false

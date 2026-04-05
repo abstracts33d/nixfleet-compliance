@@ -82,7 +82,12 @@ in {
             ssh_host_key_exists=false
           fi
 
-          compliant=$ssh_host_key_exists
+          expiring_count=$(echo "$expiring_certs" | jq 'length' 2>/dev/null || echo "0")
+          if [ "$ssh_host_key_exists" = "true" ] && [ "''${expiring_count:-0}" -eq 0 ]; then
+            compliant=true
+          else
+            compliant=false
+          fi
 
           jq -n \
             --arg tls_min_version "$tls_min_version" \

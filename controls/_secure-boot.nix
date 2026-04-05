@@ -39,6 +39,8 @@ in {
         name = "secure-boot";
         runtimeInputs = with pkgs; [systemd];
         script = ''
+          require_secure_boot="${if cfg.requireSecureBoot then "true" else "false"}"
+
           efi_supported="false"
           if [ -d /sys/firmware/efi ]; then
             efi_supported="true"
@@ -62,7 +64,15 @@ in {
             signed_entries_exist="true"
           fi
 
-          compliant=$efi_supported
+          if [ "$require_secure_boot" = "true" ]; then
+            if [ "$secure_boot_active" = "true" ]; then
+              compliant=true
+            else
+              compliant=false
+            fi
+          else
+            compliant=$efi_supported
+          fi
 
           jq -n \
             --argjson compliant "$compliant" \
