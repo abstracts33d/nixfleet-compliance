@@ -37,6 +37,8 @@
     };
   };
 in {
+  imports = [./collector.nix];
+
   options.compliance.evidence = {
     probes = lib.mkOption {
       type = lib.types.attrsOf probeType;
@@ -59,10 +61,5 @@ in {
         description = "Directory where evidence.json is written";
       };
     };
-  };
-
-  config = lib.mkIf cfg.collector.enable {
-    # Import the collector service/timer
-    imports = [./collector.nix];
   };
 }
