@@ -88,6 +88,44 @@
           }
         ];
 
+        eval-phase2-controls-enabled = mkEvalCheck "phase2-controls-enabled" [
+          {
+            check = fleet.nis2Essential.compliance.controls.baselineHardening.enable;
+            msg = "NIS2 essential enables baseline-hardening";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.auditLogging.enable;
+            msg = "NIS2 essential enables audit-logging";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.backupRetention.enable;
+            msg = "NIS2 essential enables backup-retention";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.encryptionInTransit.enable;
+            msg = "NIS2 essential enables encryption-in-transit";
+          }
+        ];
+
+        eval-phase2-entity-differentiation = mkEvalCheck "phase2-entity-diff" [
+          {
+            check = fleet.nis2Essential.compliance.controls.baselineHardening.level == "strict";
+            msg = "Essential entity: hardening level is strict";
+          }
+          {
+            check = fleet.nis2Important.compliance.controls.baselineHardening.level == "standard";
+            msg = "Important entity: hardening level is standard";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.auditLogging.retentionDays == 730;
+            msg = "Essential entity: audit retention is 730 days";
+          }
+          {
+            check = fleet.nis2Important.compliance.controls.auditLogging.retentionDays == 365;
+            msg = "Important entity: audit retention is 365 days";
+          }
+        ];
+
         eval-evidence-collector = mkEvalCheck "evidence-collector" [
           {
             check = fleet.nis2Essential.compliance.evidence.collector.enable;
