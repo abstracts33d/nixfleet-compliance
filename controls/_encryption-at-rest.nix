@@ -71,7 +71,11 @@ in {
           fi
 
           tmp_mount=$(findmnt -n -o FSTYPE /tmp 2>/dev/null || echo "")
-          tmp_is_tmpfs=$([ "$tmp_mount" = "tmpfs" ] && echo "true" || echo "false")
+          if [ "$tmp_mount" = "tmpfs" ]; then
+            tmp_is_tmpfs=true
+          else
+            tmp_is_tmpfs=false
+          fi
 
           jq -n \
             --argjson luks_count "$luks_count" \

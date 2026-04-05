@@ -53,9 +53,13 @@ in {
         name = "disaster-recovery";
         runtimeInputs = with pkgs; [coreutils];
         script = ''
-          generations_count=$(ls /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
+          generations_count=$(ls /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l || echo "0")
 
-          meets_min_generations=$([ "$generations_count" -ge ${toString cfg.minGenerations} ] 2>/dev/null && echo "true" || echo "false")
+          if [ "$generations_count" -ge ${toString cfg.minGenerations} ] 2>/dev/null; then
+            meets_min_generations=true
+          else
+            meets_min_generations=false
+          fi
 
           newest_generation_age_hours="unknown"
           newest_link=$(ls -1t /nix/var/nix/profiles/system-*-link 2>/dev/null | head -1)

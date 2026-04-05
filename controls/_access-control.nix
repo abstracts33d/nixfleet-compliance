@@ -63,17 +63,29 @@ in {
 
           password_auth=$(grep -i "^PasswordAuthentication" "$sshd_config" 2>/dev/null \
             | awk '{print tolower($2)}' || echo "unknown")
-          password_auth_disabled=$([ "$password_auth" = "no" ] && echo "true" || echo "false")
+          if [ "$password_auth" = "no" ]; then
+            password_auth_disabled=true
+          else
+            password_auth_disabled=false
+          fi
 
           root_login=$(grep -i "^PermitRootLogin" "$sshd_config" 2>/dev/null \
             | awk '{print tolower($2)}' || echo "unknown")
-          root_login_restricted=$([ "$root_login" = "no" ] || [ "$root_login" = "prohibit-password" ] && echo "true" || echo "false")
+          if [ "$root_login" = "no" ] || [ "$root_login" = "prohibit-password" ]; then
+            root_login_restricted=true
+          else
+            root_login_restricted=false
+          fi
 
           alive_interval=$(grep -i "^ClientAliveInterval" "$sshd_config" 2>/dev/null \
             | awk '{print $2}' || echo "0")
           alive_count=$(grep -i "^ClientAliveCountMax" "$sshd_config" 2>/dev/null \
             | awk '{print $2}' || echo "3")
-          has_idle_timeout=$([ "$alive_interval" -gt 0 ] && echo "true" || echo "false")
+          if [ "$alive_interval" -gt 0 ]; then
+            has_idle_timeout=true
+          else
+            has_idle_timeout=false
+          fi
 
           sudo_users=$(getent group wheel 2>/dev/null | cut -d: -f4 | tr ',' '\n' \
             | jq -R -s 'split("\n") | map(select(length > 0))' \

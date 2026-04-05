@@ -45,7 +45,7 @@ in {
         name = "incident-response";
         runtimeInputs = with pkgs; [coreutils];
         script = ''
-          nixos_generations_available=$(ls /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
+          nixos_generations_available=$(ls /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l || echo "0")
 
           current_generation=$(basename $(readlink /nix/var/nix/profiles/system) | grep -oP '\d+' || echo "unknown")
 
@@ -57,9 +57,17 @@ in {
             oldest_generation_days=$(( (now - oldest_epoch) / 86400 ))
           fi
 
-          rollback_available=$([ "$nixos_generations_available" -gt 1 ] 2>/dev/null && echo "true" || echo "false")
+          if [ "$nixos_generations_available" -gt 1 ] 2>/dev/null; then
+            rollback_available=true
+          else
+            rollback_available=false
+          fi
 
-          journal_available=$(journalctl -n 1 --no-pager >/dev/null 2>&1 && echo "true" || echo "false")
+          if journalctl -n 1 --no-pager >/dev/null 2>&1; then
+            journal_available=true
+          else
+            journal_available=false
+          fi
 
           jq -n \
             --argjson nixos_generations_available "$nixos_generations_available" \

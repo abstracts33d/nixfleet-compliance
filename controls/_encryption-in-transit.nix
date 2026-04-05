@@ -76,7 +76,11 @@ in {
             fi
           fi
 
-          ssh_host_key_exists=$([ -f /etc/ssh/ssh_host_ed25519_key.pub ] && echo "true" || echo "false")
+          if [ -f /etc/ssh/ssh_host_ed25519_key.pub ]; then
+            ssh_host_key_exists=true
+          else
+            ssh_host_key_exists=false
+          fi
 
           jq -n \
             --arg tls_min_version "$tls_min_version" \

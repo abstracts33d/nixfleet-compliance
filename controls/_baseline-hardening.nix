@@ -64,22 +64,46 @@ in {
           }
 
           dmesg_val=$(read_sysctl kernel/dmesg_restrict)
-          dmesg_restrict=$([ "$dmesg_val" = "1" ] && echo "true" || echo "false")
+          if [ "$dmesg_val" = "1" ]; then
+            dmesg_restrict=true
+          else
+            dmesg_restrict=false
+          fi
 
           kptr_val=$(read_sysctl kernel/kptr_restrict)
-          kptr_restrict=$([ "$kptr_val" -ge 2 ] 2>/dev/null && echo "true" || echo "false")
+          if [ "$kptr_val" -ge 2 ] 2>/dev/null; then
+            kptr_restrict=true
+          else
+            kptr_restrict=false
+          fi
 
           syncookies_val=$(read_sysctl net/ipv4/tcp_syncookies)
-          syncookies=$([ "$syncookies_val" = "1" ] && echo "true" || echo "false")
+          if [ "$syncookies_val" = "1" ]; then
+            syncookies=true
+          else
+            syncookies=false
+          fi
 
           rp_filter_val=$(read_sysctl net/ipv4/conf/all/rp_filter)
-          rp_filter=$([ "$rp_filter_val" = "1" ] && echo "true" || echo "false")
+          if [ "$rp_filter_val" = "1" ]; then
+            rp_filter=true
+          else
+            rp_filter=false
+          fi
 
           accept_redirects_val=$(read_sysctl net/ipv4/conf/all/accept_redirects)
-          accept_redirects_disabled=$([ "$accept_redirects_val" = "0" ] && echo "true" || echo "false")
+          if [ "$accept_redirects_val" = "0" ]; then
+            accept_redirects_disabled=true
+          else
+            accept_redirects_disabled=false
+          fi
 
           send_redirects_val=$(read_sysctl net/ipv4/conf/all/send_redirects)
-          send_redirects_disabled=$([ "$send_redirects_val" = "0" ] && echo "true" || echo "false")
+          if [ "$send_redirects_val" = "0" ]; then
+            send_redirects_disabled=true
+          else
+            send_redirects_disabled=false
+          fi
 
           total=6
           passed=0

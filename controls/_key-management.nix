@@ -84,7 +84,11 @@ in {
             fi
           fi
 
-          keys_within_rotation_policy=$([ "$oldest_key_age_days" -le ${toString cfg.maxKeyAgeDays} ] 2>/dev/null && echo "true" || echo "false")
+          if [ "$oldest_key_age_days" -le ${toString cfg.maxKeyAgeDays} ] 2>/dev/null; then
+            keys_within_rotation_policy=true
+          else
+            keys_within_rotation_policy=false
+          fi
 
           jq -n \
             --argjson ssh_host_keys "$ssh_host_keys" \

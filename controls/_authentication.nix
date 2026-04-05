@@ -54,14 +54,22 @@ in {
           pam_modules_loaded=$(grep -oP 'pam_\w+' /etc/pam.d/sshd 2>/dev/null \
             | sort -u | jq -R -s 'split("\n") | map(select(length > 0))')
 
-          ssh_cert_auth_available=$(ls /etc/ssh/ssh_host_*_key-cert.pub >/dev/null 2>&1 && echo "true" || echo "false")
+          if ls /etc/ssh/ssh_host_*_key-cert.pub >/dev/null 2>&1; then
+            ssh_cert_auth_available=true
+          else
+            ssh_cert_auth_available=false
+          fi
 
           system_accounts=$(awk -F: '$3 >= 1000 && $3 < 65534 && $1 !~ /^nixbld/ {print $1}' /etc/passwd 2>/dev/null \
             | jq -R -s 'split("\n") | map(select(length > 0))')
 
           system_account_count=$(echo "$system_accounts" | jq 'length')
 
-          service_accounts_over_threshold=$([ "$system_account_count" -gt ${toString cfg.maxServiceAccounts} ] 2>/dev/null && echo "true" || echo "false")
+          if [ "$system_account_count" -gt ${toString cfg.maxServiceAccounts} ] 2>/dev/null; then
+            service_accounts_over_threshold=true
+          else
+            service_accounts_over_threshold=false
+          fi
 
           jq -n \
             --argjson mfa_policy_required "$mfa_policy_required" \

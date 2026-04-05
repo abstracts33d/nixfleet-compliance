@@ -45,8 +45,11 @@ in {
         name = "backup-retention";
         runtimeInputs = with pkgs; [systemd findutils];
         script = ''
-          backup_service_exists=$(systemctl list-units --type=service --type=timer --all 2>/dev/null \
-            | grep -qi "backup" && echo "true" || echo "false")
+          if systemctl list-units --type=service --type=timer --all 2>/dev/null | grep -qi "backup"; then
+            backup_service_exists=true
+          else
+            backup_service_exists=false
+          fi
 
           last_backup_age_hours="unknown"
           backup_dir=""
@@ -67,8 +70,11 @@ in {
 
           retention_policy_days=${toString cfg.retentionDays}
 
-          backup_timer_active=$(systemctl list-timers --all 2>/dev/null \
-            | grep -qi "backup" && echo "true" || echo "false")
+          if systemctl list-timers --all 2>/dev/null | grep -qi "backup"; then
+            backup_timer_active=true
+          else
+            backup_timer_active=false
+          fi
 
           jq -n \
             --argjson backup_service_exists "$backup_service_exists" \

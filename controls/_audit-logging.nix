@@ -50,7 +50,11 @@ in {
         name = "audit-logging";
         runtimeInputs = with pkgs; [systemd];
         script = ''
-          journal_persistent=$([ -d /var/log/journal ] && echo "true" || echo "false")
+          if [ -d /var/log/journal ]; then
+            journal_persistent=true
+          else
+            journal_persistent=false
+          fi
 
           retention_configured_days=${toString cfg.retentionDays}
 

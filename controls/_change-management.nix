@@ -49,7 +49,11 @@ in {
           now=$(date +%s)
           system_age_days=$(( (now - system_epoch) / 86400 ))
 
-          system_fresh=$([ "$system_age_days" -le ${toString cfg.maxSystemAgeDays} ] 2>/dev/null && echo "true" || echo "false")
+          if [ "$system_age_days" -le ${toString cfg.maxSystemAgeDays} ] 2>/dev/null; then
+            system_fresh=true
+          else
+            system_fresh=false
+          fi
 
           generations_last_30_days=$(find /nix/var/nix/profiles/ -name 'system-*-link' -mtime -30 2>/dev/null | wc -l)
 

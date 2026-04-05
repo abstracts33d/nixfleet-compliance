@@ -66,7 +66,11 @@ in {
         runtimeInputs = with pkgs; [nix];
         script = ''
           config_rev=$(cat /run/current-system/configuration-revision 2>/dev/null || echo "")
-          has_revision=$([ -n "$config_rev" ] && echo "true" || echo "false")
+          if [ -n "$config_rev" ]; then
+            has_revision=true
+          else
+            has_revision=false
+          fi
 
           sbom="/var/lib/nixfleet-compliance/sbom.json"
           if [ -f "$sbom" ]; then
@@ -83,7 +87,11 @@ in {
             now=$(date +%s)
             lock_age_days=$(( (now - lock_mtime) / 86400 ))
           fi
-          inputs_fresh=$([ "$lock_age_days" -le ${toString cfg.inputStalenessWarningDays} ] && echo "true" || echo "false")
+          if [ "$lock_age_days" -le ${toString cfg.inputStalenessWarningDays} ]; then
+            inputs_fresh=true
+          else
+            inputs_fresh=false
+          fi
 
           jq -n \
             --argjson has_revision "$has_revision" \
