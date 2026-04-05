@@ -42,13 +42,23 @@ in {
     ];
 
     # ── SBOM generation ──────────────────────────────
-    system.activationScripts.compliance-sbom = lib.mkIf cfg.sbomGeneration {
-      text = ''
-        mkdir -p /var/lib/nixfleet-compliance
-        ${pkgs.nix}/bin/nix path-info --json --recursive /run/current-system 2>/dev/null \
-          | ${pkgs.jq}/bin/jq '[.[] | {path: .path, narHash: .narHash, narSize: .narSize, references: .references, deriver: .deriver}]' \
-          > /var/lib/nixfleet-compliance/sbom.json || true
-      '';
+    # Runs as a systemd service after boot (not activation script — /run/current-system
+    # isn't updated yet during activation, so nix path-info would see stale/missing path).
+    systemd.services.compliance-sbom-generator = lib.mkIf cfg.sbomGeneration {
+      description = "Generate SBOM from NixOS closure";
+      after = ["multi-user.target"];
+      wantedBy = ["multi-user.target"];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = pkgs.writeShellScript "generate-sbom" ''
+          mkdir -p /var/lib/nixfleet-compliance
+          ${pkgs.nix}/bin/nix path-info --json --recursive /run/current-system 2>/dev/null \
+            | ${pkgs.jq}/bin/jq '[.[] | {path: .path, narHash: .narHash, narSize: .narSize, references: .references, deriver: .deriver}]' \
+            > /var/lib/nixfleet-compliance/sbom.json || true
+        '';
+        StateDirectory = "nixfleet-compliance";
+      };
     };
 
     # ── EVIDENCE ─────────────────────────────────────
