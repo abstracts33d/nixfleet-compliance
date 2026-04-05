@@ -25,7 +25,7 @@
   script,
 }:
 pkgs.writeShellScript "probe-${name}" ''
-  set -euo pipefail
+  set -o pipefail
   export PATH="${lib.makeBinPath (with pkgs; [coreutils jq gnugrep gawk hostname iproute2] ++ runtimeInputs)}"
 
   ${script}
