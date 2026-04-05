@@ -16,6 +16,10 @@ in {
     ../controls/_asset-inventory.nix
     ../controls/_encryption-at-rest.nix
     ../controls/_access-control.nix
+    ../controls/_baseline-hardening.nix
+    ../controls/_audit-logging.nix
+    ../controls/_backup-retention.nix
+    ../controls/_encryption-in-transit.nix
   ];
 
   options.compliance.frameworks.nis2 = {
@@ -75,6 +79,43 @@ in {
           if isEssential
           then 15
           else 30;
+      };
+
+      baselineHardening = {
+        enable = true;
+        level =
+          if isEssential
+          then "strict"
+          else "standard";
+      };
+
+      auditLogging = {
+        enable = true;
+        retentionDays =
+          if isEssential
+          then 730
+          else 365;
+      };
+
+      backupRetention = {
+        enable = true;
+        retentionDays =
+          if isEssential
+          then 730
+          else 365;
+        verifyInterval =
+          if isEssential
+          then "daily"
+          else "weekly";
+      };
+
+      encryptionInTransit = {
+        enable = true;
+        minTlsVersion = "1.2";
+        certExpiryWarningDays =
+          if isEssential
+          then 30
+          else 60;
       };
     };
 
