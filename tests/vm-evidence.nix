@@ -12,7 +12,7 @@
   }:
     lib.optionalAttrs (system == "x86_64-linux") {
       checks = {
-        vm-compliance-evidence = pkgs.nixosTest {
+        vm-compliance-evidence = pkgs.testers.nixosTest {
           name = "compliance-evidence";
 
           nodes.compliant = {
