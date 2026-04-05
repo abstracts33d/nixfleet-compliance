@@ -62,12 +62,16 @@ in {
             signed_entries_exist="true"
           fi
 
+          compliant=$efi_supported
+
           jq -n \
+            --argjson compliant "$compliant" \
             --argjson efi_supported "$efi_supported" \
             --argjson secure_boot_active "$secure_boot_active" \
             --arg boot_loader "$boot_loader" \
             --argjson signed_entries_exist "$signed_entries_exist" \
             '{
+              compliant: $compliant,
               efi_supported: $efi_supported,
               secure_boot_active: $secure_boot_active,
               boot_loader: $boot_loader,

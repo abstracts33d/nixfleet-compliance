@@ -63,13 +63,17 @@ in {
 
           last_rebuild_timestamp=$(date -d "@$system_epoch" --iso-8601=seconds 2>/dev/null || echo "unknown")
 
+          compliant=$system_fresh
+
           jq -n \
+            --argjson compliant "$compliant" \
             --argjson system_age_days "$system_age_days" \
             --argjson system_fresh "$system_fresh" \
             --argjson generations_last_30_days "$generations_last_30_days" \
             --arg current_nixos_version "$current_nixos_version" \
             --arg last_rebuild_timestamp "$last_rebuild_timestamp" \
             '{
+              compliant: $compliant,
               system_age_days: $system_age_days,
               system_fresh: $system_fresh,
               generations_last_30_days: $generations_last_30_days,

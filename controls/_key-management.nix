@@ -92,13 +92,17 @@ in {
             keys_within_rotation_policy=false
           fi
 
+          compliant=$keys_within_rotation_policy
+
           jq -n \
+            --argjson compliant "$compliant" \
             --argjson ssh_host_keys "$ssh_host_keys" \
             --argjson has_tpm "$has_tpm" \
             --argjson luks_key_slots "$luks_key_slots" \
             --argjson oldest_key_age_days "$oldest_key_age_days" \
             --argjson keys_within_rotation_policy "$keys_within_rotation_policy" \
             '{
+              compliant: $compliant,
               ssh_host_keys: $ssh_host_keys,
               has_tpm: $has_tpm,
               luks_key_slots: $luks_key_slots,

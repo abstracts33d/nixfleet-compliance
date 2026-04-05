@@ -65,13 +65,17 @@ in {
           interface_count=$(ip -j link show 2>/dev/null | jq '[.[] | select(.ifname != "lo")] | length' || true)
           interface_count="''${interface_count:-0}"
 
+          compliant=$firewall_enabled
+
           jq -n \
+            --argjson compliant "$compliant" \
             --argjson firewall_enabled "$firewall_enabled" \
             --argjson vlan_interfaces "$vlan_interfaces" \
             --argjson bridge_interfaces "$bridge_interfaces" \
             --argjson firewall_rules_count "$firewall_rules_count" \
             --argjson interface_count "$interface_count" \
             '{
+              compliant: $compliant,
               firewall_enabled: $firewall_enabled,
               vlan_interfaces: $vlan_interfaces,
               bridge_interfaces: $bridge_interfaces,
