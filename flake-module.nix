@@ -16,6 +16,10 @@
         audit-logging = ./controls/_audit-logging.nix;
         backup-retention = ./controls/_backup-retention.nix;
         encryption-in-transit = ./controls/_encryption-in-transit.nix;
+        incident-response = ./controls/_incident-response.nix;
+        disaster-recovery = ./controls/_disaster-recovery.nix;
+        vulnerability-mgmt = ./controls/_vulnerability-mgmt.nix;
+        authentication = ./controls/_authentication.nix;
       };
 
       # Evidence layer (auto-included by controls, also importable standalone)
