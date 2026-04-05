@@ -33,6 +33,7 @@
 
             # Minimal system config for VM test
             services.openssh.enable = true;
+            environment.systemPackages = [pkgs.jq];
 
             # Test user
             users.users.testuser = {
@@ -59,8 +60,8 @@
             # Verify evidence structure
             evidence = compliant.succeed("cat /var/lib/nixfleet-compliance/evidence.json")
 
-            # Check all Phase 1 controls are present
-            compliant.succeed("jq -e '.controls | length >= 4' /var/lib/nixfleet-compliance/evidence.json")
+            # Check all 12 controls are present
+            compliant.succeed("jq -e '.controls | length >= 12' /var/lib/nixfleet-compliance/evidence.json")
 
             # Check supply-chain control exists in evidence
             compliant.succeed(
