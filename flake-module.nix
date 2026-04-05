@@ -20,6 +20,10 @@
         disaster-recovery = ./controls/_disaster-recovery.nix;
         vulnerability-mgmt = ./controls/_vulnerability-mgmt.nix;
         authentication = ./controls/_authentication.nix;
+        network-segmentation = ./controls/_network-segmentation.nix;
+        change-management = ./controls/_change-management.nix;
+        key-management = ./controls/_key-management.nix;
+        secure-boot = ./controls/_secure-boot.nix;
       };
 
       # Evidence layer (auto-included by controls, also importable standalone)
