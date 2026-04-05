@@ -126,6 +126,52 @@
           }
         ];
 
+        eval-phase3-controls-enabled = mkEvalCheck "phase3-controls-enabled" [
+          {
+            check = fleet.nis2Essential.compliance.controls.incidentResponse.enable;
+            msg = "NIS2 essential enables incident-response";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.disasterRecovery.enable;
+            msg = "NIS2 essential enables disaster-recovery";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.vulnerabilityMgmt.enable;
+            msg = "NIS2 essential enables vulnerability-mgmt";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.authentication.enable;
+            msg = "NIS2 essential enables authentication";
+          }
+        ];
+
+        eval-phase3-entity-differentiation = mkEvalCheck "phase3-entity-diff" [
+          {
+            check = fleet.nis2Essential.compliance.controls.disasterRecovery.minGenerations == 10;
+            msg = "Essential entity: min generations is 10";
+          }
+          {
+            check = fleet.nis2Important.compliance.controls.disasterRecovery.minGenerations == 5;
+            msg = "Important entity: min generations is 5";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.vulnerabilityMgmt.blockOnCritical == true;
+            msg = "Essential entity: block on critical CVEs";
+          }
+          {
+            check = fleet.nis2Important.compliance.controls.vulnerabilityMgmt.blockOnCritical == false;
+            msg = "Important entity: don't block on critical CVEs";
+          }
+          {
+            check = fleet.nis2Essential.compliance.controls.authentication.mfaRequired == true;
+            msg = "Essential entity: MFA required";
+          }
+          {
+            check = fleet.nis2Important.compliance.controls.authentication.mfaRequired == false;
+            msg = "Important entity: MFA not required";
+          }
+        ];
+
         eval-evidence-collector = mkEvalCheck "evidence-collector" [
           {
             check = fleet.nis2Essential.compliance.evidence.collector.enable;
