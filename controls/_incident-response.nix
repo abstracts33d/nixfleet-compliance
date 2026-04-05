@@ -45,12 +45,14 @@ in {
         name = "incident-response";
         runtimeInputs = with pkgs; [coreutils];
         script = ''
-          nixos_generations_available=$(ls /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l || echo "0")
+          nixos_generations_available=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' 2>/dev/null | wc -l)
+          nixos_generations_available="''${nixos_generations_available:-0}"
 
-          current_generation=$(basename $(readlink /nix/var/nix/profiles/system) | grep -oP '\d+' || echo "unknown")
+          current_generation=$(basename "$(readlink /nix/var/nix/profiles/system 2>/dev/null)" | grep -oP '\d+' || true)
+          current_generation="''${current_generation:-unknown}"
 
           oldest_generation_days="unknown"
-          oldest_link=$(ls -1t /nix/var/nix/profiles/system-*-link 2>/dev/null | tail -1)
+          oldest_link=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' -printf '%T@ %p\n' 2>/dev/null | sort -n | head -1 | awk '{print $2}')
           if [ -n "$oldest_link" ]; then
             oldest_epoch=$(stat -c '%Y' "$oldest_link")
             now=$(date +%s)

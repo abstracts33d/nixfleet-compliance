@@ -52,7 +52,9 @@ in {
           }"
 
           pam_modules_loaded=$(grep -oP 'pam_\w+' /etc/pam.d/sshd 2>/dev/null \
-            | sort -u | jq -R -s 'split("\n") | map(select(length > 0))')
+            | sort -u | jq -R -s 'split("\n") | map(select(length > 0))' \
+            || true)
+          pam_modules_loaded="''${pam_modules_loaded:-[]}"
 
           if ls /etc/ssh/ssh_host_*_key-cert.pub >/dev/null 2>&1; then
             ssh_cert_auth_available=true
@@ -61,9 +63,12 @@ in {
           fi
 
           system_accounts=$(awk -F: '$3 >= 1000 && $3 < 65534 && $1 !~ /^nixbld/ {print $1}' /etc/passwd 2>/dev/null \
-            | jq -R -s 'split("\n") | map(select(length > 0))')
+            | jq -R -s 'split("\n") | map(select(length > 0))' \
+            || true)
+          system_accounts="''${system_accounts:-[]}"
 
           system_account_count=$(echo "$system_accounts" | jq 'length')
+          system_account_count="''${system_account_count:-0}"
 
           if [ "$system_account_count" -gt ${toString cfg.maxServiceAccounts} ] 2>/dev/null; then
             service_accounts_over_threshold=true

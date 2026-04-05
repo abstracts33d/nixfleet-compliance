@@ -52,7 +52,8 @@ in {
           key_entries=""
           for pub in /etc/ssh/ssh_host_*_key.pub; do
             [ -f "$pub" ] || continue
-            algorithm=$(ssh-keygen -l -f "$pub" 2>/dev/null | awk '{print $4}' | tr -d '()')
+            algorithm=$(ssh-keygen -l -f "$pub" 2>/dev/null | awk '{print $4}' | tr -d '()' || true)
+            algorithm="''${algorithm:-unknown}"
             key_epoch=$(stat -c '%Y' "$pub" 2>/dev/null || echo "$now")
             age_days=$(( (now - key_epoch) / 86400 ))
             if [ "$age_days" -gt "$oldest_key_age_days" ]; then
@@ -78,9 +79,10 @@ in {
 
           luks_key_slots="0"
           if command -v cryptsetup >/dev/null 2>&1; then
-            root_device=$(lsblk -no PKNAME "$(findmnt -n -o SOURCE / 2>/dev/null)" 2>/dev/null)
+            root_device=$(lsblk -no PKNAME "$(findmnt -n -o SOURCE / 2>/dev/null)" 2>/dev/null || true)
             if [ -n "$root_device" ]; then
-              luks_key_slots=$(cryptsetup luksDump "/dev/$root_device" 2>/dev/null | grep -c 'Key Slot' || echo "0")
+              luks_key_slots=$(cryptsetup luksDump "/dev/$root_device" 2>/dev/null | grep -c 'Key Slot' || true)
+              luks_key_slots="''${luks_key_slots:-0}"
             fi
           fi
 

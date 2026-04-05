@@ -38,14 +38,18 @@ in {
 
           interfaces=$(ip -j link show 2>/dev/null \
             | jq '[.[] | select(.ifname != "lo") | {name: .ifname, state: .operstate}]' \
-            || echo "[]")
+            || true)
+          interfaces="''${interfaces:-[]}"
 
           services=$(systemctl list-units --type=service --state=running --no-pager --plain \
             | grep '\.service' \
             | awk '{print $1}' \
             | jq -R -s 'split("\n") | map(select(length > 0))' \
-            || echo "[]")
+            || true)
+          services="''${services:-[]}"
+
           service_count=$(echo "$services" | jq 'length')
+          service_count="''${service_count:-0}"
 
           last_config_apply=""
           if [ -L /run/current-system ]; then

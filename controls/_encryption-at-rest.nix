@@ -49,8 +49,10 @@ in {
         script = ''
           luks_devices=$(lsblk -J -o NAME,TYPE,FSTYPE 2>/dev/null \
             | jq '[.blockdevices[] | recurse(.children[]?) | select(.type == "crypt")]' \
-            || echo "[]")
+            || true)
+          luks_devices="''${luks_devices:-[]}"
           luks_count=$(echo "$luks_devices" | jq 'length')
+          luks_count="''${luks_count:-0}"
 
           swap_lines=$(swapon --show=NAME,TYPE --noheadings 2>/dev/null || echo "")
           if [ -z "$swap_lines" ]; then
@@ -70,7 +72,8 @@ in {
             done <<< "$swap_lines"
           fi
 
-          tmp_mount=$(findmnt -n -o FSTYPE /tmp 2>/dev/null || echo "")
+          tmp_mount=$(findmnt -n -o FSTYPE /tmp 2>/dev/null || true)
+          tmp_mount="''${tmp_mount:-}"
           if [ "$tmp_mount" = "tmpfs" ]; then
             tmp_is_tmpfs=true
           else

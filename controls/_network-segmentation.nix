@@ -45,20 +45,25 @@ in {
         name = "network-segmentation";
         runtimeInputs = with pkgs; [iproute2 nftables jq];
         script = ''
-          firewall_enabled=$(systemctl is-active nftables.service 2>/dev/null || systemctl is-active firewalld.service 2>/dev/null)
-          if [ "$firewall_enabled" = "active" ]; then
+          nftables_status=$(systemctl is-active nftables.service 2>/dev/null || true)
+          firewalld_status=$(systemctl is-active firewalld.service 2>/dev/null || true)
+          if [ "$nftables_status" = "active" ] || [ "$firewalld_status" = "active" ]; then
             firewall_enabled="true"
           else
             firewall_enabled="false"
           fi
 
-          vlan_interfaces=$(ip -j link show type vlan 2>/dev/null | jq '[.[].ifname]' || echo "[]")
+          vlan_interfaces=$(ip -j link show type vlan 2>/dev/null | jq '[.[].ifname]' || true)
+          vlan_interfaces="''${vlan_interfaces:-[]}"
 
-          bridge_interfaces=$(ip -j link show type bridge 2>/dev/null | jq '[.[].ifname]' || echo "[]")
+          bridge_interfaces=$(ip -j link show type bridge 2>/dev/null | jq '[.[].ifname]' || true)
+          bridge_interfaces="''${bridge_interfaces:-[]}"
 
-          firewall_rules_count=$(nft list ruleset 2>/dev/null | grep -c 'rule' || echo "0")
+          firewall_rules_count=$(nft list ruleset 2>/dev/null | grep -c 'rule' || true)
+          firewall_rules_count="''${firewall_rules_count:-0}"
 
-          interface_count=$(ip -j link show 2>/dev/null | jq '[.[] | select(.ifname != "lo")] | length' || echo "0")
+          interface_count=$(ip -j link show 2>/dev/null | jq '[.[] | select(.ifname != "lo")] | length' || true)
+          interface_count="''${interface_count:-0}"
 
           jq -n \
             --argjson firewall_enabled "$firewall_enabled" \

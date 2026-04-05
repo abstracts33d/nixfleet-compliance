@@ -45,7 +45,8 @@ in {
         name = "change-management";
         runtimeInputs = with pkgs; [coreutils findutils];
         script = ''
-          system_epoch=$(stat -c '%Y' /run/current-system 2>/dev/null || echo "0")
+          system_epoch=$(stat -c '%Y' /run/current-system 2>/dev/null || true)
+          system_epoch="''${system_epoch:-0}"
           now=$(date +%s)
           system_age_days=$(( (now - system_epoch) / 86400 ))
 
@@ -56,6 +57,7 @@ in {
           fi
 
           generations_last_30_days=$(find /nix/var/nix/profiles/ -name 'system-*-link' -mtime -30 2>/dev/null | wc -l)
+          generations_last_30_days="''${generations_last_30_days:-0}"
 
           current_nixos_version=$(cat /run/current-system/nixos-version 2>/dev/null || echo "unknown")
 

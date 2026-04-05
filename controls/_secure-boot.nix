@@ -53,7 +53,8 @@ in {
 
           boot_loader="unknown"
           if command -v bootctl >/dev/null 2>&1; then
-            boot_loader=$(bootctl status 2>/dev/null | head -1 || echo "unknown")
+            boot_loader=$(bootctl status 2>/dev/null | head -1 || true)
+            boot_loader="''${boot_loader:-unknown}"
           fi
 
           signed_entries_exist="false"

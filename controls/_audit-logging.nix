@@ -65,7 +65,8 @@ in {
           }
 
           journal_disk_usage=$(journalctl --disk-usage 2>/dev/null \
-            | grep -oP '[\d.]+[GMKT]' || echo "unknown")
+            | grep -oP '[\d.]+[GMKT]' || true)
+          journal_disk_usage="''${journal_disk_usage:-unknown}"
 
           jq -n \
             --argjson journal_persistent "$journal_persistent" \

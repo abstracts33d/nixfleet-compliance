@@ -74,7 +74,8 @@ in {
 
           sbom="/var/lib/nixfleet-compliance/sbom.json"
           if [ -f "$sbom" ]; then
-            package_count=$(jq 'length' "$sbom")
+            package_count=$(jq 'length' "$sbom" || true)
+            package_count="''${package_count:-0}"
             sbom_exists=true
           else
             package_count=0

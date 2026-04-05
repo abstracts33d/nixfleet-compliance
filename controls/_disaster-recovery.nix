@@ -53,7 +53,8 @@ in {
         name = "disaster-recovery";
         runtimeInputs = with pkgs; [coreutils];
         script = ''
-          generations_count=$(ls /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l || echo "0")
+          generations_count=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' 2>/dev/null | wc -l)
+          generations_count="''${generations_count:-0}"
 
           if [ "$generations_count" -ge ${toString cfg.minGenerations} ] 2>/dev/null; then
             meets_min_generations=true
@@ -62,7 +63,7 @@ in {
           fi
 
           newest_generation_age_hours="unknown"
-          newest_link=$(ls -1t /nix/var/nix/profiles/system-*-link 2>/dev/null | head -1)
+          newest_link=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | awk '{print $2}')
           if [ -n "$newest_link" ]; then
             newest_epoch=$(stat -c '%Y' "$newest_link")
             now=$(date +%s)
@@ -70,7 +71,7 @@ in {
           fi
 
           oldest_generation_age_days="unknown"
-          oldest_link=$(ls -1t /nix/var/nix/profiles/system-*-link 2>/dev/null | tail -1)
+          oldest_link=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' -printf '%T@ %p\n' 2>/dev/null | sort -n | head -1 | awk '{print $2}')
           if [ -n "$oldest_link" ]; then
             oldest_epoch=$(stat -c '%Y' "$oldest_link")
             now=$(date +%s)

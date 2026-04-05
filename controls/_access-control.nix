@@ -59,29 +59,27 @@ in {
         name = "access-control";
         runtimeInputs = with pkgs; [openssh];
         script = ''
-          sshd_config="/etc/ssh/sshd_config"
-
-          password_auth=$(grep -i "^PasswordAuthentication" "$sshd_config" 2>/dev/null \
-            | awk '{print tolower($2)}' || echo "unknown")
+          password_auth=$(sshd -T 2>/dev/null | grep -i "^passwordauthentication" | awk '{print tolower($2)}' || true)
+          password_auth="''${password_auth:-unknown}"
           if [ "$password_auth" = "no" ]; then
             password_auth_disabled=true
           else
             password_auth_disabled=false
           fi
 
-          root_login=$(grep -i "^PermitRootLogin" "$sshd_config" 2>/dev/null \
-            | awk '{print tolower($2)}' || echo "unknown")
+          root_login=$(sshd -T 2>/dev/null | grep -i "^permitrootlogin" | awk '{print tolower($2)}' || true)
+          root_login="''${root_login:-unknown}"
           if [ "$root_login" = "no" ] || [ "$root_login" = "prohibit-password" ]; then
             root_login_restricted=true
           else
             root_login_restricted=false
           fi
 
-          alive_interval=$(grep -i "^ClientAliveInterval" "$sshd_config" 2>/dev/null \
-            | awk '{print $2}' || echo "0")
-          alive_count=$(grep -i "^ClientAliveCountMax" "$sshd_config" 2>/dev/null \
-            | awk '{print $2}' || echo "3")
-          if [ "$alive_interval" -gt 0 ]; then
+          alive_interval=$(sshd -T 2>/dev/null | grep -i "^clientaliveinterval" | awk '{print $2}' || true)
+          alive_interval="''${alive_interval:-0}"
+          alive_count=$(sshd -T 2>/dev/null | grep -i "^clientalivecountmax" | awk '{print $2}' || true)
+          alive_count="''${alive_count:-3}"
+          if [ "$alive_interval" -gt 0 ] 2>/dev/null; then
             has_idle_timeout=true
           else
             has_idle_timeout=false
@@ -89,14 +87,16 @@ in {
 
           sudo_users=$(getent group wheel 2>/dev/null | cut -d: -f4 | tr ',' '\n' \
             | jq -R -s 'split("\n") | map(select(length > 0))' \
-            || echo "[]")
+            || true)
+          sudo_users="''${sudo_users:-[]}"
 
           ssh_key_count=0
           for home_dir in /home/*; do
             [ -d "$home_dir" ] || continue
             auth_keys="$home_dir/.ssh/authorized_keys"
             if [ -f "$auth_keys" ]; then
-              count=$(grep -c "^ssh-" "$auth_keys" 2>/dev/null || echo "0")
+              count=$(grep -c "^ssh-" "$auth_keys" 2>/dev/null || true)
+              count="''${count:-0}"
               ssh_key_count=$((ssh_key_count + count))
             fi
           done
