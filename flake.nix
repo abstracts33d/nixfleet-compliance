@@ -17,6 +17,7 @@
       imports = [
         ./flake-module.nix
         ./tests/eval.nix
+        ./tests/vm-evidence.nix
       ];
 
       perSystem = {
