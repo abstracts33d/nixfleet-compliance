@@ -29,7 +29,7 @@ in {
   config = lib.mkIf cfg.enable {
     boot.kernel.sysctl = {
       "kernel.dmesg_restrict" = lib.mkDefault 1;
-      "kernel.kptr_restrict" = lib.mkDefault 2;
+      "kernel.kptr_restrict" = lib.mkForce 2;
       "net.ipv4.conf.all.rp_filter" = lib.mkDefault 1;
       "net.ipv4.conf.default.rp_filter" = lib.mkDefault 1;
       "net.ipv4.conf.all.accept_redirects" = lib.mkDefault 0;
