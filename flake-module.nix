@@ -12,6 +12,10 @@
         asset-inventory = ./controls/_asset-inventory.nix;
         encryption-at-rest = ./controls/_encryption-at-rest.nix;
         access-control = ./controls/_access-control.nix;
+        baseline-hardening = ./controls/_baseline-hardening.nix;
+        audit-logging = ./controls/_audit-logging.nix;
+        backup-retention = ./controls/_backup-retention.nix;
+        encryption-in-transit = ./controls/_encryption-in-transit.nix;
       };
 
       # Evidence layer (auto-included by controls, also importable standalone)
