@@ -18,12 +18,12 @@
 
 ## Future Controls (identified gaps)
 
-- [ ] `_network-segmentation` — VLAN/firewall zone enforcement (DORA Art. 9, SecNumCloud)
-- [ ] `_data-classification` — data sensitivity labeling (HDS, GDPR)
-- [ ] `_change-management` — deployment approval gates (ISO 27001 A.12.1)
-- [ ] `_key-management` — key rotation, HSM/TPM integration (SecNumCloud)
-- [ ] `_data-residency` — geographic constraints on data (GDPR, HDS)
-- [ ] `_secure-boot` — verified boot chain attestation (CRA Art. 10)
+- [x] `_network-segmentation` — VLAN/firewall zone verification (DORA Art. 9, SecNumCloud)
+- [ ] `_data-classification` — data sensitivity labeling (HDS, GDPR) — deferred: needs application-layer schema
+- [x] `_change-management` — deployment frequency tracking (ISO 27001 A.12.1)
+- [x] `_key-management` — key inventory, rotation tracking, TPM detection (SecNumCloud)
+- [ ] `_data-residency` — geographic constraints on data (GDPR, HDS) — deferred: needs application-layer context
+- [x] `_secure-boot` — verified boot chain attestation (CRA Art. 10)
 
 ## Evidence Layer Evolution
 
