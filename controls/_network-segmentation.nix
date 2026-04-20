@@ -1,0 +1,108 @@
+# controls/_network-segmentation.nix
+#
+# Network segmentation - DORA Art. 9, SecNumCloud.
+# No enforcement: network topology is fleet-specific.
+# Verifies: firewall status, VLAN interfaces, bridge interfaces,
+# firewall rule count, interface inventory.
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
+  cfg = config.compliance.controls.networkSegmentation;
+  gov = config.compliance.governance;
+  mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
+in {
+  imports = [../evidence/options.nix ../governance/options.nix];
+
+  options.compliance.controls.networkSegmentation = {
+    enable = lib.mkEnableOption "network segmentation compliance control (DORA Art. 9)";
+
+    enforce = lib.mkOption {
+      type = lib.types.bool;
+      default = gov.enforceMode == "enforce";
+      description = "Apply NixOS configuration. When false, only probes run.";
+    };
+
+    expectedVlans = lib.mkOption {
+      type = lib.types.listOf lib.types.int;
+      default = [];
+      description = "VLANs expected to be configured on this host";
+    };
+
+    requireFirewall = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether a firewall is required by policy";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    networking.firewall.enable = lib.mkIf (cfg.enforce && cfg.requireFirewall) (lib.mkDefault true);
+
+    compliance.evidence.collector.enable = lib.mkDefault true;
+
+    compliance.evidence.probes.networkSegmentation = {
+      control = "network-segmentation";
+      articles = {
+        dora = ["Art. 9"];
+        secnumcloud = ["network"];
+        nis2 = ["21(a)"];
+      };
+      check = mkProbe {
+        name = "network-segmentation";
+        runtimeInputs = with pkgs; [iproute2 nftables jq];
+        script = ''
+          nftables_status=$(systemctl is-active nftables.service 2>/dev/null || true)
+          firewalld_status=$(systemctl is-active firewalld.service 2>/dev/null || true)
+          if [ "$nftables_status" = "active" ] || [ "$firewalld_status" = "active" ]; then
+            firewall_enabled="true"
+          else
+            firewall_enabled="false"
+          fi
+
+          vlan_interfaces=$(ip -j link show type vlan 2>/dev/null | jq '[.[].ifname]' || true)
+          vlan_interfaces="''${vlan_interfaces:-[]}"
+
+          bridge_interfaces=$(ip -j link show type bridge 2>/dev/null | jq '[.[].ifname]' || true)
+          bridge_interfaces="''${bridge_interfaces:-[]}"
+
+          firewall_rules_count=$(nft list ruleset 2>/dev/null | grep -c 'rule' || true)
+          firewall_rules_count="''${firewall_rules_count:-0}"
+
+          interface_count=$(ip -j link show 2>/dev/null | jq '[.[] | select(.ifname != "lo")] | length' || true)
+          interface_count="''${interface_count:-0}"
+
+          require_firewall="${
+            if cfg.requireFirewall
+            then "true"
+            else "false"
+          }"
+          if [ "$require_firewall" = "true" ]; then
+            compliant=$firewall_enabled
+          else
+            # Firewall not required by policy - report state but pass
+            compliant=true
+          fi
+
+          jq -n \
+            --argjson compliant "$compliant" \
+            --argjson firewall_enabled "$firewall_enabled" \
+            --argjson vlan_interfaces "$vlan_interfaces" \
+            --argjson bridge_interfaces "$bridge_interfaces" \
+            --argjson firewall_rules_count "$firewall_rules_count" \
+            --argjson interface_count "$interface_count" \
+            '{
+              compliant: $compliant,
+              firewall_enabled: $firewall_enabled,
+              vlan_interfaces: $vlan_interfaces,
+              bridge_interfaces: $bridge_interfaces,
+              firewall_rules_count: $firewall_rules_count,
+              interface_count: $interface_count
+            }'
+        '';
+      };
+    };
+  };
+}

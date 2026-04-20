@@ -1,0 +1,215 @@
+# lib/mkControl.nix
+#
+# mkControl: generates a NixOS module from a control definition with rules.
+#
+# Usage:
+#   import ../lib/mkControl.nix {
+#     controlId = "baselineHardening";
+#     controlDescription = "Baseline OS hardening";
+#     articles = { nis2 = ["21(a)"]; };
+#     rules = import ./rules.nix;
+#   }
+{
+  controlId,
+  controlDescription,
+  articles ? {},
+  extraOptions ? {},
+  rules,
+}: {
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
+  cfg = config.compliance.controls.${controlId};
+  gov = config.compliance.governance;
+  mkProbe = import ./mkProbe.nix {inherit pkgs lib;};
+
+  levelMapping = {
+    "minimal" = 0;
+    "standard" = 1;
+    "strict" = 2;
+    "paranoid" = 3;
+  };
+
+  # Determine if a rule should be enabled based on governance policy
+  ruleEnabled = rule:
+    cfg.enable
+    && levelMapping.${gov.level} >= levelMapping.${rule.severity}
+    && (rule.hostTypes == [] || lib.elem gov.hostType rule.hostTypes)
+    && ((rule.architectures or []) == [] || lib.elem gov.architecture (rule.architectures or []))
+    && lib.all (t: !(lib.elem t gov.excludes)) (rule.tags or [])
+    && !(gov.exceptions ? ${rule.id});
+
+  # Determine why a rule is disabled (for compliance report)
+  exclusionReason = rule:
+    if !(cfg.enable)
+    then {
+      reason = "control ${controlId} is disabled";
+      via = "control";
+    }
+    else if levelMapping.${gov.level} < levelMapping.${rule.severity}
+    then {
+      reason = "severity ${rule.severity} exceeds governance level ${gov.level}";
+      via = "level";
+      requiredLevel = rule.severity;
+    }
+    else if rule.hostTypes != [] && !(lib.elem gov.hostType rule.hostTypes)
+    then {
+      reason = "not applicable to host type ${gov.hostType}";
+      via = "hostType";
+      requiredHostTypes = rule.hostTypes;
+    }
+    else if (rule.architectures or []) != [] && !(lib.elem gov.architecture (rule.architectures or []))
+    then {
+      reason = "not applicable to architecture ${gov.architecture}";
+      via = "architecture";
+      requiredArchitectures = rule.architectures or [];
+    }
+    else if lib.any (t: lib.elem t gov.excludes) (rule.tags or [])
+    then {
+      reason = "excluded by tag ${lib.concatStringsSep ", " (lib.filter (t: lib.elem t gov.excludes) (rule.tags or []))}";
+      via = "tag";
+    }
+    else if gov.exceptions ? ${rule.id}
+    then {
+      reason = "excluded by exception: ${gov.exceptions.${rule.id}.rationale}";
+      via = "exception";
+      rationale = gov.exceptions.${rule.id}.rationale;
+    }
+    else {
+      reason = "explicitly disabled by user";
+      via = "override";
+    };
+
+  # Generate options for each rule
+  ruleOptions = lib.listToAttrs (map (
+      rule:
+        lib.nameValuePair rule.id ({
+            enable = lib.mkOption {
+              type = lib.types.bool;
+              default = ruleEnabled rule;
+              description = ''
+                Enable rule ${rule.id} (${rule.name}).
+                ${rule.description}
+                Severity: ${rule.severity}.
+              '';
+            };
+          }
+          // lib.optionalAttrs (rule ? implementations) {
+            implementation = lib.mkOption {
+              type = lib.types.enum (lib.attrNames rule.implementations);
+              default = lib.head (lib.attrNames rule.implementations);
+              description = ''
+                Implementation variant for rule ${rule.id}.
+                Available: ${lib.concatStringsSep ", " (lib.attrNames rule.implementations)}.
+              '';
+            };
+          })
+    )
+    rules);
+
+  # Build enforcement config from enabled rules
+  enabledRuleConfigs = lib.mkMerge (map (
+      rule:
+        lib.mkIf (cfg.rules.${rule.id}.enable && cfg.enforce) (
+          if rule ? implementations
+          then rule.implementations.${cfg.rules.${rule.id}.implementation}.config {inherit lib pkgs config;}
+          else rule.config {inherit lib pkgs config;}
+        )
+    )
+    rules);
+
+  # Aggregate probe - runs all rule probes and merges results
+  aggregateProbe = mkProbe {
+    name = controlId;
+    script = let
+      ruleProbes = lib.filter (rule: cfg.rules.${rule.id}.enable) rules;
+    in ''
+      results="{}"
+      overall_compliant=true
+      ${lib.concatMapStringsSep "\n" (rule: let
+          probe =
+            if rule ? implementations
+            then (rule.implementations.${cfg.rules.${rule.id}.implementation}.check or rule.check) {inherit pkgs lib mkProbe;}
+            else rule.check {inherit pkgs lib mkProbe;};
+        in ''
+          # Rule ${rule.id}: ${rule.name}
+          if rule_output=$("${probe}" 2>/dev/null); then
+            results=$(echo "$results" | jq --arg id "${rule.id}" --argjson out "$rule_output" '. + {($id): $out}')
+            rule_compliant=$(echo "$rule_output" | jq -r 'if has("compliant") then .compliant else true end')
+            if [ "$rule_compliant" = "false" ]; then
+              overall_compliant=false
+            fi
+          else
+            results=$(echo "$results" | jq --arg id "${rule.id}" '. + {($id): {"error": "probe failed"}}')
+            overall_compliant=false
+          fi
+        '')
+        ruleProbes}
+
+      jq -n \
+        --argjson rules "$results" \
+        --argjson compliant "$overall_compliant" \
+        '{ rules: $rules, compliant: $compliant }'
+    '';
+  };
+
+  # Build exclusions map for the report
+  exclusions = lib.listToAttrs (
+    map (rule: lib.nameValuePair rule.id (exclusionReason rule))
+    (lib.filter (rule: !(cfg.rules.${rule.id}.enable)) rules)
+  );
+in {
+  imports = [
+    ../governance/options.nix
+    ../evidence/options.nix
+  ];
+
+  options.compliance.controls.${controlId} =
+    {
+      enable = lib.mkEnableOption "${controlDescription}";
+
+      enforce = lib.mkOption {
+        type = lib.types.bool;
+        default = gov.enforceMode == "enforce";
+        description = ''
+          Whether this control applies NixOS configuration (enforcement).
+          When false, only evidence probes run (report-only mode).
+          Defaults to the governance-level enforceMode.
+        '';
+      };
+
+      rules = ruleOptions;
+
+      _meta = lib.mkOption {
+        type = lib.types.attrs;
+        default = {
+          inherit controlId controlDescription articles;
+          inherit exclusions;
+          ruleCount = builtins.length rules;
+          enabledRuleCount = builtins.length (lib.filter (rule: cfg.rules.${rule.id}.enable) rules);
+        };
+        readOnly = true;
+        internal = true;
+        description = "Internal metadata for compliance report generation";
+      };
+    }
+    // extraOptions;
+
+  config = lib.mkIf cfg.enable (lib.mkMerge [
+    # Enforcement - only when enforce = true
+    enabledRuleConfigs
+
+    # Evidence - always when control is enabled
+    {
+      compliance.evidence.collector.enable = lib.mkDefault true;
+
+      compliance.evidence.probes.${controlId} = {
+        control = controlId;
+        inherit articles;
+        check = aggregateProbe;
+      };
+    }
+  ]);
+}
