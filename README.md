@@ -1,9 +1,5 @@
 # NixFleet Compliance
 
-[![CI](https://github.com/arcanesys/nixfleet-compliance/actions/workflows/ci.yml/badge.svg)](https://github.com/arcanesys/nixfleet-compliance/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE-MIT)
-[![v0.1.0](https://img.shields.io/github/v/tag/arcanesys/nixfleet-compliance?label=version)](https://github.com/arcanesys/nixfleet-compliance/releases/tag/v0.1.0)
-
 Regulatory compliance controls for NixOS infrastructure. Enforce security measures and produce cryptographic evidence - all as declarative NixOS modules.
 
 Works with [NixFleet](https://github.com/arcanesys/nixfleet) or standalone on any NixOS system.
