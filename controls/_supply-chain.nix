@@ -4,10 +4,10 @@
 # Verifies: flake.lock pinning, SBOM generation policy, input staleness
 # threshold. Enforcement (when enabled) emits an SBOM at boot.
 #
-# Typed control: type="static". Declared policy (sbomGeneration,
-# inputStalenessWarningDays) is evaluated at CI time. A no-op `check`
-# script is retained for backward compatibility with the evidence
-# collector.
+# Typed control: type="both". Declared policy (sbomGeneration,
+# inputStalenessWarningDays) is evaluated at CI time via staticEvidence.
+# A runtime probe captures flake.lock age, SBOM file existence, and
+# configuration-revision from the running system.
 {
   config,
   lib,
@@ -16,10 +16,75 @@
 }: let
   cfg = config.compliance.controls.supplyChain;
   gov = config.compliance.governance;
+  mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
   framework = gov.primaryFramework or "nis2";
   schemaVersion =
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
+
+  probeScript = mkProbe {
+    name = "supply-chain";
+    runtimeInputs = with pkgs; [coreutils findutils gnugrep jq];
+    script = ''
+      # flake.lock age
+      flake_lock_days=null
+      if [ -f /run/current-system/flake.lock ]; then
+        lock_mtime=$(stat -c %Y /run/current-system/flake.lock 2>/dev/null || echo 0)
+        now=$(date +%s)
+        if [ "$lock_mtime" -gt 0 ]; then
+          flake_lock_days=$(( (now - lock_mtime) / 86400 ))
+        fi
+      fi
+
+      # SBOM file existence
+      sbom_present=false
+      sbom_mtime_days=null
+      if [ -f /var/lib/compliance-sbom/bom.json ]; then
+        sbom_present=true
+        sbom_mtime=$(stat -c %Y /var/lib/compliance-sbom/bom.json 2>/dev/null || echo 0)
+        now=$(date +%s)
+        if [ "$sbom_mtime" -gt 0 ]; then
+          sbom_mtime_days=$(( (now - sbom_mtime) / 86400 ))
+        fi
+      fi
+
+      # configuration-revision
+      config_revision=null
+      if [ -f /run/current-system/configuration-revision ]; then
+        config_revision=$(cat /run/current-system/configuration-revision 2>/dev/null || echo null)
+        config_revision="\"$config_revision\""
+      fi
+
+      # Compliance gate
+      warn_days=${toString cfg.inputStalenessWarningDays}
+      sbom_required=${
+        if cfg.sbomGeneration
+        then "true"
+        else "false"
+      }
+      compliant=true
+      if [ "$flake_lock_days" != "null" ] && [ "$flake_lock_days" -gt "$warn_days" ]; then
+        compliant=false
+      fi
+      if [ "$sbom_required" = "true" ] && [ "$sbom_present" != "true" ]; then
+        compliant=false
+      fi
+
+      jq -n \
+        --argjson flake_lock_days "$flake_lock_days" \
+        --argjson sbom_present "$sbom_present" \
+        --argjson sbom_mtime_days "$sbom_mtime_days" \
+        --argjson config_revision "$config_revision" \
+        --argjson compliant "$compliant" \
+        '{
+          flake_lock_days: $flake_lock_days,
+          sbom_present: $sbom_present,
+          sbom_mtime_days: $sbom_mtime_days,
+          config_revision: $config_revision,
+          compliant: $compliant
+        }'
+    '';
+  };
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
 
@@ -76,14 +141,14 @@ in {
 
     compliance.evidence.probes.supplyChain = {
       control = "supply-chain";
-      type = "static";
+      type = "both";
       schema = schemaVersion;
       articles = {
         nis2 = ["21(d)"];
         iso27001 = ["A.5.19" "A.5.21"];
         cra = ["Art. 10"];
       };
-      probeDescriptor = null;
+      check = probeScript;
       staticEvidence = {
         passed = cfg.enable;
         evidence = {
@@ -92,9 +157,13 @@ in {
           enforce = cfg.enforce;
         };
       };
-      check = pkgs.writeShellScript "noop-supply-chain" ''
-        jq -n '{compliant: true}'
-      '';
+      probeDescriptor = {
+        command = toString probeScript;
+        args = [];
+        timeoutSecs = 30;
+        expect = {compliant = true;};
+        schema = schemaVersion;
+      };
     };
   };
 }
