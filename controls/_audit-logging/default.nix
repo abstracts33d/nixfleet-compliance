@@ -18,7 +18,7 @@
     rules = import ./rules.nix;
   };
 in {
-  imports = [mkControlMod];
+  imports = [mkControlMod ./typed-augment.nix];
 
   options.compliance.controls.auditLogging = {
     retentionDays = lib.mkOption {

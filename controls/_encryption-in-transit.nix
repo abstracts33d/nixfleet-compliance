@@ -4,6 +4,11 @@
 # No direct TLS enforcement (that's per-service).
 # Verifies: TLS minimum version policy, certificate inventory,
 # expiring certificates, SSH host key presence.
+#
+# Typed control: type="both". Declared TLS policy is evaluated at CI
+# time (staticEvidence); a runtime probe inspects certificate stores and
+# SSH host keys. The legacy `check` script is retained for backward
+# compatibility with the evidence collector.
 {
   config,
   lib,
@@ -13,6 +18,72 @@
   cfg = config.compliance.controls.encryptionInTransit;
   gov = config.compliance.governance;
   mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
+  framework = gov.primaryFramework or "anssi-bp028";
+  schemaVersion =
+    config.compliance.schemaVersions.${framework}
+    or (throw "compliance.schemaVersions.${framework} is not set");
+
+  probeScript = mkProbe {
+    name = "encryption-in-transit";
+    runtimeInputs = with pkgs; [openssl findutils];
+    script = ''
+      tls_min_version="${cfg.minTlsVersion}"
+
+      cert_count=0
+      for dir in /etc/ssl/certs /var/lib/acme; do
+        if [ -d "$dir" ]; then
+          count=$(find "$dir" -type f \( -name "*.pem" -o -name "*.crt" \) 2>/dev/null | wc -l)
+          cert_count=$((cert_count + count))
+        fi
+      done
+
+      expiring_certs="[]"
+      warning_days=${toString cfg.certExpiryWarningDays}
+      if [ -d /var/lib/acme ]; then
+        for cert_file in /var/lib/acme/*/cert.pem; do
+          [ -f "$cert_file" ] || continue
+          end_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null \
+            | sed 's/notAfter=//' || continue)
+          end_epoch=$(date -d "$end_date" +%s 2>/dev/null || continue)
+          now_epoch=$(date +%s)
+          days_left=$(( (end_epoch - now_epoch) / 86400 ))
+          if [ "$days_left" -le "$warning_days" ]; then
+            domain=$(basename "$(dirname "$cert_file")")
+            expiring_certs=$(echo "$expiring_certs" | jq \
+              --arg d "$domain" --argjson dl "$days_left" \
+              '. + [{domain: $d, days_left: $dl}]')
+          fi
+        done
+      fi
+
+      if [ -f /etc/ssh/ssh_host_ed25519_key.pub ]; then
+        ssh_host_key_exists=true
+      else
+        ssh_host_key_exists=false
+      fi
+
+      expiring_count=$(echo "$expiring_certs" | jq 'length' 2>/dev/null || echo "0")
+      if [ "$ssh_host_key_exists" = "true" ] && [ "''${expiring_count:-0}" -eq 0 ]; then
+        compliant=true
+      else
+        compliant=false
+      fi
+
+      jq -n \
+        --arg tls_min_version "$tls_min_version" \
+        --argjson cert_files_found "$cert_count" \
+        --argjson certs_expiring_soon "$expiring_certs" \
+        --argjson ssh_host_key_exists "$ssh_host_key_exists" \
+        --argjson compliant "$compliant" \
+        '{
+          tls_min_version: $tls_min_version,
+          cert_files_found: $cert_files_found,
+          certs_expiring_soon: $certs_expiring_soon,
+          ssh_host_key_exists: $ssh_host_key_exists,
+          compliant: $compliant
+        }'
+    '';
+  };
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
 
@@ -43,71 +114,27 @@ in {
 
     compliance.evidence.probes.encryptionInTransit = {
       control = "encryption-in-transit";
+      type = "both";
+      schema = schemaVersion;
       articles = {
         nis2 = ["21(h)"];
         iso27001 = ["A.8.20" "A.8.24"];
         cra = ["Art. 10"];
       };
-      check = mkProbe {
-        name = "encryption-in-transit";
-        runtimeInputs = with pkgs; [openssl findutils];
-        script = ''
-          tls_min_version="${cfg.minTlsVersion}"
-
-          cert_count=0
-          for dir in /etc/ssl/certs /var/lib/acme; do
-            if [ -d "$dir" ]; then
-              count=$(find "$dir" -type f \( -name "*.pem" -o -name "*.crt" \) 2>/dev/null | wc -l)
-              cert_count=$((cert_count + count))
-            fi
-          done
-
-          expiring_certs="[]"
-          warning_days=${toString cfg.certExpiryWarningDays}
-          if [ -d /var/lib/acme ]; then
-            for cert_file in /var/lib/acme/*/cert.pem; do
-              [ -f "$cert_file" ] || continue
-              end_date=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null \
-                | sed 's/notAfter=//' || continue)
-              end_epoch=$(date -d "$end_date" +%s 2>/dev/null || continue)
-              now_epoch=$(date +%s)
-              days_left=$(( (end_epoch - now_epoch) / 86400 ))
-              if [ "$days_left" -le "$warning_days" ]; then
-                domain=$(basename "$(dirname "$cert_file")")
-                expiring_certs=$(echo "$expiring_certs" | jq \
-                  --arg d "$domain" --argjson dl "$days_left" \
-                  '. + [{domain: $d, days_left: $dl}]')
-              fi
-            done
-          fi
-
-          if [ -f /etc/ssh/ssh_host_ed25519_key.pub ]; then
-            ssh_host_key_exists=true
-          else
-            ssh_host_key_exists=false
-          fi
-
-          expiring_count=$(echo "$expiring_certs" | jq 'length' 2>/dev/null || echo "0")
-          if [ "$ssh_host_key_exists" = "true" ] && [ "''${expiring_count:-0}" -eq 0 ]; then
-            compliant=true
-          else
-            compliant=false
-          fi
-
-          jq -n \
-            --arg tls_min_version "$tls_min_version" \
-            --argjson cert_files_found "$cert_count" \
-            --argjson certs_expiring_soon "$expiring_certs" \
-            --argjson ssh_host_key_exists "$ssh_host_key_exists" \
-            --argjson compliant "$compliant" \
-            '{
-              tls_min_version: $tls_min_version,
-              cert_files_found: $cert_files_found,
-              certs_expiring_soon: $certs_expiring_soon,
-              ssh_host_key_exists: $ssh_host_key_exists,
-              compliant: $compliant
-            }'
-        '';
+      check = probeScript;
+      staticEvidence = {
+        passed = builtins.elem cfg.minTlsVersion ["1.2" "1.3"];
+        evidence = {
+          declaredMinTlsVersion = cfg.minTlsVersion;
+          certExpiryWarningDays = cfg.certExpiryWarningDays;
+        };
+      };
+      probeDescriptor = {
+        command = toString probeScript;
+        args = [];
+        timeoutSecs = 30;
+        expect = {compliant = true;};
+        schema = schemaVersion;
       };
     };
   };
