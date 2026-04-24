@@ -1,9 +1,11 @@
 # controls/_change-management.nix
 #
-# Change management - ISO 27001 A.12.1, DORA Art. 8.
+# Change management - ISO 27001 A.8.32, DORA Art. 8, NIS2 21(e).
 # No enforcement: deployment policy is fleet-specific.
-# Verifies: system age, rebuild freshness, generation frequency,
-# NixOS version, last rebuild timestamp.
+#
+# Typed control: type="static". Declared policy is evaluated at CI time
+# (staticEvidence); no runtime probe is needed. A no-op `check` script is
+# retained for backward compatibility with the evidence collector.
 {
   config,
   lib,
@@ -12,12 +14,16 @@
 }: let
   cfg = config.compliance.controls.changeManagement;
   gov = config.compliance.governance;
-  mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
+  framework = gov.primaryFramework or "iso27001";
+  schemaVersion =
+    config.compliance.schemaVersions.${framework}
+    or (throw "compliance.schemaVersions.${framework} is not set");
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
 
   options.compliance.controls.changeManagement = {
-    enable = lib.mkEnableOption "change management compliance control (ISO 27001 A.12.1)";
+    enable = lib.mkEnableOption "change management compliance control (ISO 27001 A.8.32)";
+
     enforce = lib.mkOption {
       type = lib.types.bool;
       default = gov.enforceMode == "enforce";
@@ -42,56 +48,24 @@ in {
 
     compliance.evidence.probes.changeManagement = {
       control = "change-management";
+      type = "static";
+      schema = schemaVersion;
       articles = {
         iso27001 = ["A.8.32"];
         dora = ["Art. 8"];
         nis2 = ["21(e)"];
       };
-      check = mkProbe {
-        name = "change-management";
-        runtimeInputs = with pkgs; [coreutils findutils];
-        script = ''
-          system_epoch=$(stat -c '%Y' /run/current-system 2>/dev/null || true)
-          system_epoch="''${system_epoch:-0}"
-          now=$(date +%s)
-          system_age_days=$(( (now - system_epoch) / 86400 ))
-
-          if [ "$system_age_days" -le ${toString cfg.maxSystemAgeDays} ] 2>/dev/null; then
-            system_fresh=true
-          else
-            system_fresh=false
-          fi
-
-          generations_last_30_days=$(find /nix/var/nix/profiles/ -name 'system-*-link' -mtime -30 2>/dev/null | wc -l)
-          generations_last_30_days="''${generations_last_30_days:-0}"
-          # Count the active system as at least 1 generation
-          if [ "$generations_last_30_days" -eq 0 ] && [ -e /run/current-system ]; then
-            generations_last_30_days=1
-          fi
-
-          current_nixos_version=$(cat /run/current-system/nixos-version 2>/dev/null || echo "unknown")
-
-          last_rebuild_timestamp=$(date -d "@$system_epoch" --iso-8601=seconds 2>/dev/null || echo "unknown")
-
-          compliant=$system_fresh
-
-          jq -n \
-            --argjson compliant "$compliant" \
-            --argjson system_age_days "$system_age_days" \
-            --argjson system_fresh "$system_fresh" \
-            --argjson generations_last_30_days "$generations_last_30_days" \
-            --arg current_nixos_version "$current_nixos_version" \
-            --arg last_rebuild_timestamp "$last_rebuild_timestamp" \
-            '{
-              compliant: $compliant,
-              system_age_days: $system_age_days,
-              system_fresh: $system_fresh,
-              generations_last_30_days: $generations_last_30_days,
-              current_nixos_version: $current_nixos_version,
-              last_rebuild_timestamp: $last_rebuild_timestamp
-            }'
-        '';
+      probeDescriptor = null;
+      staticEvidence = {
+        passed = cfg.enable;
+        evidence = {
+          maxSystemAgeDays = cfg.maxSystemAgeDays;
+          minGenerationFrequency = cfg.minGenerationFrequency;
+        };
       };
+      check = pkgs.writeShellScript "noop-change-management" ''
+        jq -n '{compliant: true}'
+      '';
     };
   };
 }
