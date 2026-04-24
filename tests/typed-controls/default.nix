@@ -17,10 +17,7 @@
     mod = lib.evalModules {
       modules = [
         controlPath
-        {
-          _module.args = {inherit pkgs;};
-          config = cfg;
-        }
+        {config = cfg;}
       ];
       specialArgs = {inherit pkgs;};
     };
