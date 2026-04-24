@@ -34,6 +34,39 @@
           Non-zero exit = probe failed to run (collector marks as "error").
         '';
       };
+      type = lib.mkOption {
+        type = lib.types.nullOr (lib.types.enum ["static" "runtime" "both"]);
+        default = null;
+        description = ''
+          Typed-control discriminator. When set, the probe also publishes
+          a typed projection (staticEvidence and/or probeDescriptor) in
+          addition to the legacy `check` script. Null means this probe
+          predates the typed controls migration.
+        '';
+      };
+      schema = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = ''
+          Schema version for the typed projection (e.g. "anssi-bp028/v1").
+          Pulled from `compliance.schemaVersions.<framework>`.
+        '';
+      };
+      staticEvidence = lib.mkOption {
+        type = lib.types.nullOr lib.types.attrs;
+        default = null;
+        description = ''
+          Result of the static evaluator at CI time. Null for type="runtime".
+        '';
+      };
+      probeDescriptor = lib.mkOption {
+        type = lib.types.nullOr lib.types.attrs;
+        default = null;
+        description = ''
+          CONTRACTS §I.3 probe descriptor the agent executes on-host.
+          Null for type="static".
+        '';
+      };
     };
   };
 in {

@@ -66,6 +66,15 @@ in {
       '';
     };
 
+    primaryFramework = lib.mkOption {
+      type = lib.types.str;
+      default = "anssi-bp028";
+      description = ''
+        Primary compliance framework. Used by typed controls to look up
+        the schema version in `compliance.schemaVersions.<framework>`.
+      '';
+    };
+
     exceptions = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule {
         options.rationale = lib.mkOption {
@@ -81,5 +90,14 @@ in {
         Example: { "BH-07".rationale = "IPv6 required for internal mesh"; }
       '';
     };
+  };
+
+  options.compliance.schemaVersions = lib.mkOption {
+    type = lib.types.attrsOf lib.types.str;
+    default = {};
+    description = ''
+      Per-framework schema versions for typed-control evidence payloads.
+      Example: { "anssi-bp028" = "anssi-bp028/v1"; }
+    '';
   };
 }
