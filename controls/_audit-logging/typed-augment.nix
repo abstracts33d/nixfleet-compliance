@@ -24,6 +24,12 @@
   auditdEnabled = config.services.auditd.enable or false;
   rulesDeclared = config.security.audit.rules or [];
   auditEnabled = config.security.audit.enable or false;
+
+  # Declaration intent: control enabled + at least one rule opted in.
+  # Runtime-effective state (auditdEnabled etc.) stays in `evidence` as
+  # informational for auditors; the runtime `probeDescriptor` is the
+  # source of truth for "is the policy actually live on this host".
+  enabledRuleCount = builtins.length (lib.filter (n: cfg.rules.${n}.enable or false) (builtins.attrNames cfg.rules));
 in {
   imports = [../../evidence/options.nix ../../governance/options.nix];
 
@@ -32,8 +38,9 @@ in {
       type = "both";
       schema = schemaVersion;
       staticEvidence = {
-        passed = auditdEnabled && auditEnabled && (rulesDeclared != []);
+        passed = cfg.enable && enabledRuleCount > 0;
         evidence = {
+          enabledRuleCount = enabledRuleCount;
           auditdEnabled = auditdEnabled;
           auditEnabled = auditEnabled;
           rulesDeclared = rulesDeclared;
