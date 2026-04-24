@@ -10,7 +10,7 @@
 # Used by `mkTypedControl` for controls whose state is fully declared in
 # the flake (e.g. boot loader config, supply chain pins). Runtime
 # controls omit this projection; `both`-typed controls provide both.
-{lib}: {
+{}: {
   runStatic = evaluate: config: let
     result = evaluate config;
   in
