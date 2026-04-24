@@ -36,6 +36,7 @@ in {
     ../controls/_key-management.nix
     ../controls/_supply-chain.nix
     ../controls/_vulnerability-mgmt.nix
+    ../controls/_agent-egress-exemption.nix
   ];
 
   options.compliance.frameworks.iso27001 = {
