@@ -3,7 +3,7 @@
 # Build a CONTRACTS §I.3 probe descriptor from typed fields.
 # Output shape — ready for JCS canonicalization by Stream C:
 #   { command: str, args: [str], timeoutSecs: int, expect: attrs, schema: str }
-{lib}: {
+{}: {
   # probe :: ShellScript (derivation) — resolved to a store path as `command`
   # args :: [string]
   # timeoutSecs :: int
@@ -16,7 +16,7 @@
     expect ? {},
     schema,
   }: {
-    inherit args timeoutSecs expect schema;
     command = toString command;
+    inherit args timeoutSecs expect schema;
   };
 }
