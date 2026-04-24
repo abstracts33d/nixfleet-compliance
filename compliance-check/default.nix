@@ -29,22 +29,23 @@
 
     ${lib.concatMapStringsSep "\n" (name: let
         probe = probes.${name};
+        display = probe.control or name;
       in ''
         total=$((total + 1))
         if result=$("${probe.check}" 2>/dev/null); then
           compliant=$(echo "$result" | jq -r 'if has("compliant") then .compliant else true end')
           if [ "$compliant" = "true" ]; then
-            printf "\033[32m  PASS\033[0m  %-30s %s\n" "${name}" "(${lib.concatStringsSep ", " (lib.attrNames (probe.articles or {}))})"
+            printf "\033[32m  PASS\033[0m  %-30s %s\n" "${display}" "(${lib.concatStringsSep ", " (lib.attrNames (probe.articles or {}))})"
             passed=$((passed + 1))
           else
-            printf "\033[31m  FAIL\033[0m  %-30s %s\n" "${name}" "(${lib.concatStringsSep ", " (lib.attrNames (probe.articles or {}))})"
+            printf "\033[31m  FAIL\033[0m  %-30s %s\n" "${display}" "(${lib.concatStringsSep ", " (lib.attrNames (probe.articles or {}))})"
             if [ "''${VERBOSE:-}" = "1" ]; then
               echo "$result" | jq -C '.' 2>/dev/null | sed 's/^/         /'
             fi
             failed=$((failed + 1))
           fi
         else
-          printf "\033[33m  ERR \033[0m  %-30s %s\n" "${name}" "probe execution failed"
+          printf "\033[33m  ERR \033[0m  %-30s %s\n" "${display}" "probe execution failed"
           errors=$((errors + 1))
         fi
       '')
