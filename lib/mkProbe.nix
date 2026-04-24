@@ -33,11 +33,18 @@ pkgs.writeShellScript "probe-${name}" ''
   export PATH="${lib.makeBinPath (with pkgs; [coreutils findutils jq gnugrep gawk hostname iproute2 systemd] ++ runtimeInputs)}"
 
   # Wrap the caller's script so that whatever JSON they emit is
-  # re-read through `jq -cS` (compact, sorted-keys) before leaving
-  # stdout. This is a cheap JCS-producer-side discipline.
+  # re-read through `jq -cSj` (compact, sorted-keys, no trailing
+  # separator) before leaving stdout. This is a cheap JCS-producer-
+  # side discipline. If the caller's script produced no output,
+  # fail loudly rather than silently emitting an empty probe payload.
   raw=$(
     ${script}
   )
 
-  printf '%s' "$raw" | jq -cS '.'
+  if [ -z "$raw" ]; then
+    echo "probe-${name}: script produced no output" >&2
+    exit 1
+  fi
+
+  printf '%s' "$raw" | jq -cSj '.'
 ''
