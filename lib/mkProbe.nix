@@ -1,21 +1,25 @@
 # lib/mkProbe.nix
 #
-# mkProbe: wraps a probe script with common boilerplate.
-# Handles: set -euo pipefail, PATH with common tools, jq validation.
+# Wraps a probe script. The script body MUST print a single JSON object
+# to stdout. This wrapper guarantees the final bytes written to stdout
+# are JCS-ready: UTF-8, sorted keys, no trailing newline, no whitespace.
 #
-# Usage in a control module:
+# Stream C's `nixfleet-canonicalize` normalises number/unicode edge
+# cases - producer-side, we promise to never emit floats and to keep
+# attr-set iteration deterministic. Usage is unchanged for existing
+# controls:
+#
 #   mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
 #   check = mkProbe {
-#     name = "access-control";
+#     name = "my-control";
 #     runtimeInputs = with pkgs; [openssh];
 #     script = ''
-#       password_auth_disabled=$(...)
-#       jq -n --argjson val "$password_auth_disabled" '{password_auth_disabled: $val}'
+#       jq -n --argjson val true '{ok: $val}'
 #     '';
 #   };
 #
-# The script body MUST print a valid JSON object to stdout.
-# Default PATH includes: coreutils, jq, gnugrep, gawk, hostname, iproute2.
+# Default PATH includes: coreutils, findutils, jq, gnugrep, gawk,
+# hostname, iproute2, systemd.
 {
   pkgs,
   lib,
@@ -28,5 +32,12 @@ pkgs.writeShellScript "probe-${name}" ''
   set -o pipefail
   export PATH="${lib.makeBinPath (with pkgs; [coreutils findutils jq gnugrep gawk hostname iproute2 systemd] ++ runtimeInputs)}"
 
-  ${script}
+  # Wrap the caller's script so that whatever JSON they emit is
+  # re-read through `jq -cS` (compact, sorted-keys) before leaving
+  # stdout. This is a cheap JCS-producer-side discipline.
+  raw=$(
+    ${script}
+  )
+
+  printf '%s' "$raw" | jq -cS '.'
 ''
