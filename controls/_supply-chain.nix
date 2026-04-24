@@ -39,9 +39,9 @@
       # SBOM file existence
       sbom_present=false
       sbom_mtime_days=null
-      if [ -f /var/lib/compliance-sbom/bom.json ]; then
+      if [ -f /var/lib/nixfleet-compliance/sbom.json ]; then
         sbom_present=true
-        sbom_mtime=$(stat -c %Y /var/lib/compliance-sbom/bom.json 2>/dev/null || echo 0)
+        sbom_mtime=$(stat -c %Y /var/lib/nixfleet-compliance/sbom.json 2>/dev/null || echo 0)
         now=$(date +%s)
         if [ "$sbom_mtime" -gt 0 ]; then
           sbom_mtime_days=$(( (now - sbom_mtime) / 86400 ))
