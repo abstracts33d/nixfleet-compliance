@@ -10,6 +10,7 @@
 }: let
   mkControlMod = import ../../lib/mkControl.nix {
     controlId = "auditLogging";
+    controlName = "audit-logging";
     controlDescription = "audit logging compliance control (NIS2 Art. 21(b)(f))";
     articles = {
       nis2 = ["21(b)" "21(f)"];
@@ -18,7 +19,7 @@
     rules = import ./rules.nix;
   };
 in {
-  imports = [mkControlMod];
+  imports = [mkControlMod ./typed-augment.nix];
 
   options.compliance.controls.auditLogging = {
     retentionDays = lib.mkOption {

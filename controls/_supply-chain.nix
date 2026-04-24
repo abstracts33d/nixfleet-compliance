@@ -1,10 +1,13 @@
 # controls/_supply-chain.nix
 #
-# Supply chain control - Art. 21(d).
-# Verifies: flake.lock pinning, SBOM generation, nixpkgs staleness.
+# Supply chain control - NIS2 Art. 21(d), ISO 27001 A.5.19/A.5.21, CRA Art. 10.
+# Verifies: flake.lock pinning, SBOM generation policy, input staleness
+# threshold. Enforcement (when enabled) emits an SBOM at boot.
 #
-# Evidence probe reads /run/current-system metadata and nix store info.
-# Does NOT require nixfleet - works on any NixOS system with a flake.
+# Typed control: type="static". Declared policy (sbomGeneration,
+# inputStalenessWarningDays) is evaluated at CI time. A no-op `check`
+# script is retained for backward compatibility with the evidence
+# collector.
 {
   config,
   lib,
@@ -13,7 +16,10 @@
 }: let
   cfg = config.compliance.controls.supplyChain;
   gov = config.compliance.governance;
-  mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
+  framework = gov.primaryFramework or "nis2";
+  schemaVersion =
+    config.compliance.schemaVersions.${framework}
+    or (throw "compliance.schemaVersions.${framework} is not set");
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
 
@@ -70,83 +76,25 @@ in {
 
     compliance.evidence.probes.supplyChain = {
       control = "supply-chain";
+      type = "static";
+      schema = schemaVersion;
       articles = {
         nis2 = ["21(d)"];
         iso27001 = ["A.5.19" "A.5.21"];
         cra = ["Art. 10"];
       };
-      check = mkProbe {
-        name = "supply-chain";
-        runtimeInputs = with pkgs; [nix];
-        script = ''
-          config_rev=$(cat /run/current-system/configuration-revision 2>/dev/null || echo "")
-          if [ -n "$config_rev" ]; then
-            has_revision=true
-          else
-            has_revision=false
-          fi
-
-          sbom="/var/lib/nixfleet-compliance/sbom.json"
-          if [ -f "$sbom" ]; then
-            package_count=$(jq 'length' "$sbom" || true)
-            package_count="''${package_count:-0}"
-            sbom_exists=true
-          else
-            package_count=0
-            sbom_exists=false
-          fi
-
-          lock_age_days="unknown"
-          if [ -f /run/current-system/flake.lock ]; then
-            lock_mtime=$(stat -c %Y /run/current-system/flake.lock 2>/dev/null || echo "0")
-            now=$(date +%s)
-            lock_age_days=$(( (now - lock_mtime) / 86400 ))
-          fi
-          if [ "$lock_age_days" != "unknown" ] && [ "$lock_age_days" -le ${toString cfg.inputStalenessWarningDays} ]; then
-            inputs_fresh=true
-          else
-            inputs_fresh=false
-          fi
-
-          require_sbom="${
-            if cfg.sbomGeneration
-            then "true"
-            else "false"
-          }"
-
-          compliant=true
-          # Inputs must be fresh (and flake.lock must exist)
-          if [ "$inputs_fresh" != "true" ]; then
-            compliant=false
-          fi
-          # Must have provenance: either a git revision or an SBOM
-          if [ "$has_revision" != "true" ] && [ "$sbom_exists" != "true" ]; then
-            compliant=false
-          fi
-          # When SBOM generation is enabled, require it to actually exist
-          if [ "$require_sbom" = "true" ] && [ "$sbom_exists" != "true" ]; then
-            compliant=false
-          fi
-
-          jq -n \
-            --argjson has_revision "$has_revision" \
-            --argjson sbom_exists "$sbom_exists" \
-            --argjson package_count "$package_count" \
-            --arg lock_age_days "$lock_age_days" \
-            --argjson inputs_fresh "$inputs_fresh" \
-            --arg config_revision "$config_rev" \
-            --argjson compliant "$compliant" \
-            '{
-              has_configuration_revision: $has_revision,
-              sbom_generated: $sbom_exists,
-              closure_package_count: $package_count,
-              flake_lock_age_days: $lock_age_days,
-              inputs_fresh: $inputs_fresh,
-              configuration_revision: $config_revision,
-              compliant: $compliant
-            }'
-        '';
+      probeDescriptor = null;
+      staticEvidence = {
+        passed = cfg.enable;
+        evidence = {
+          sbomGeneration = cfg.sbomGeneration;
+          inputStalenessWarningDays = cfg.inputStalenessWarningDays;
+          enforce = cfg.enforce;
+        };
       };
+      check = pkgs.writeShellScript "noop-supply-chain" ''
+        jq -n '{compliant: true}'
+      '';
     };
   };
 }

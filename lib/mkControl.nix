@@ -5,12 +5,20 @@
 # Usage:
 #   import ../lib/mkControl.nix {
 #     controlId = "baselineHardening";
+#     controlName = "baseline-hardening";
 #     controlDescription = "Baseline OS hardening";
 #     articles = { nis2 = ["21(a)"]; };
 #     rules = import ./rules.nix;
 #   }
+#
+# `controlId` is the NixOS option path (camelCase, required). `controlName`
+# is the kebab-case display name surfaced in evidence.json and the
+# compliance-check table; defaults to `controlId` for backward compat,
+# but multi-word controls should pass it explicitly to match the
+# kebab-case convention single-file controls already use.
 {
   controlId,
+  controlName ? controlId,
   controlDescription,
   articles ? {},
   extraOptions ? {},
@@ -185,7 +193,7 @@ in {
       _meta = lib.mkOption {
         type = lib.types.attrs;
         default = {
-          inherit controlId controlDescription articles;
+          inherit controlId controlName controlDescription articles;
           inherit exclusions;
           ruleCount = builtins.length rules;
           enabledRuleCount = builtins.length (lib.filter (rule: cfg.rules.${rule.id}.enable) rules);
@@ -206,7 +214,7 @@ in {
       compliance.evidence.collector.enable = lib.mkDefault true;
 
       compliance.evidence.probes.${controlId} = {
-        control = controlId;
+        control = controlName;
         inherit articles;
         check = aggregateProbe;
       };

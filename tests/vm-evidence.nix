@@ -110,7 +110,7 @@
 
             # Verify auditd probe detects the service as active
             compliant.succeed(
-              "jq -e '.controls[] | select(.control == \"auditLogging\") | "
+              "jq -e '.controls[] | select(.control == \"audit-logging\") | "
               ".checks.rules.\"AL-02\".auditd_active == true' "
               "/var/lib/nixfleet-compliance/evidence.json"
             )

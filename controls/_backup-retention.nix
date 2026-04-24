@@ -4,6 +4,10 @@
 # No enforcement: backup setup is the fleet's job.
 # Verifies: backup service existence, last backup age, retention policy,
 # timer state. Works with or without nixfleet's _backup scope.
+#
+# Typed control: type="runtime". Emits a CONTRACTS §I.3 probeDescriptor
+# alongside the legacy `check` script for evidence collector backward
+# compatibility.
 {
   config,
   lib,
@@ -13,6 +17,75 @@
   cfg = config.compliance.controls.backupRetention;
   gov = config.compliance.governance;
   mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
+  framework = gov.primaryFramework or "anssi-bp028";
+  schemaVersion =
+    config.compliance.schemaVersions.${framework}
+    or (throw "compliance.schemaVersions.${framework} is not set");
+
+  probeScript = mkProbe {
+    name = "backup-retention";
+    runtimeInputs = with pkgs; [systemd findutils];
+    script = ''
+      if systemctl list-units --type=service --type=timer --all 2>/dev/null | grep -qi "backup"; then
+        backup_service_exists=true
+      else
+        backup_service_exists=false
+      fi
+
+      last_backup_age_hours="unknown"
+      backup_dir=""
+      if [ -d /var/lib/nixfleet-backup ]; then
+        backup_dir="/var/lib/nixfleet-backup"
+      elif [ -d /var/backup ]; then
+        backup_dir="/var/backup"
+      fi
+      if [ -n "$backup_dir" ]; then
+        newest=$(find "$backup_dir" -type f -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
+        if [ -n "$newest" ]; then
+          now=$(date +%s)
+          newest_sec=$(printf '%.0f' "$newest")
+          age_hours=$(( (now - newest_sec) / 3600 ))
+          last_backup_age_hours="$age_hours"
+        fi
+      fi
+
+      retention_policy_days=${toString cfg.retentionDays}
+      max_backup_age_hours="${toString cfg.maxBackupAgeHours}"
+
+      if systemctl list-timers --all 2>/dev/null | grep -qi "backup"; then
+        backup_timer_active=true
+      else
+        backup_timer_active=false
+      fi
+
+      if [ "$backup_timer_active" = "true" ] || [ "$backup_service_exists" = "true" ]; then
+        if [ "$last_backup_age_hours" = "unknown" ]; then
+          # Timer/service exists but no backup files found - not compliant
+          compliant=false
+        elif [ "''${last_backup_age_hours:-0}" -gt "$max_backup_age_hours" ]; then
+          compliant=false
+        else
+          compliant=true
+        fi
+      else
+        compliant=false
+      fi
+
+      jq -n \
+        --argjson backup_service_exists "$backup_service_exists" \
+        --arg last_backup_age_hours "$last_backup_age_hours" \
+        --argjson retention_policy_days "$retention_policy_days" \
+        --argjson backup_timer_active "$backup_timer_active" \
+        --argjson compliant "$compliant" \
+        '{
+          backup_service_exists: $backup_service_exists,
+          last_backup_age_hours: $last_backup_age_hours,
+          retention_policy_days: $retention_policy_days,
+          backup_timer_active: $backup_timer_active,
+          compliant: $compliant
+        }'
+    '';
+  };
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
 
@@ -48,74 +121,21 @@ in {
 
     compliance.evidence.probes.backupRetention = {
       control = "backup-retention";
+      type = "runtime";
+      schema = schemaVersion;
       articles = {
         nis2 = ["21(c)"];
         iso27001 = ["A.8.13"];
         dora = ["Art. 12"];
       };
-      check = mkProbe {
-        name = "backup-retention";
-        runtimeInputs = with pkgs; [systemd findutils];
-        script = ''
-          if systemctl list-units --type=service --type=timer --all 2>/dev/null | grep -qi "backup"; then
-            backup_service_exists=true
-          else
-            backup_service_exists=false
-          fi
-
-          last_backup_age_hours="unknown"
-          backup_dir=""
-          if [ -d /var/lib/nixfleet-backup ]; then
-            backup_dir="/var/lib/nixfleet-backup"
-          elif [ -d /var/backup ]; then
-            backup_dir="/var/backup"
-          fi
-          if [ -n "$backup_dir" ]; then
-            newest=$(find "$backup_dir" -type f -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
-            if [ -n "$newest" ]; then
-              now=$(date +%s)
-              newest_sec=$(printf '%.0f' "$newest")
-              age_hours=$(( (now - newest_sec) / 3600 ))
-              last_backup_age_hours="$age_hours"
-            fi
-          fi
-
-          retention_policy_days=${toString cfg.retentionDays}
-          max_backup_age_hours="${toString cfg.maxBackupAgeHours}"
-
-          if systemctl list-timers --all 2>/dev/null | grep -qi "backup"; then
-            backup_timer_active=true
-          else
-            backup_timer_active=false
-          fi
-
-          if [ "$backup_timer_active" = "true" ] || [ "$backup_service_exists" = "true" ]; then
-            if [ "$last_backup_age_hours" = "unknown" ]; then
-              # Timer/service exists but no backup files found - not compliant
-              compliant=false
-            elif [ "''${last_backup_age_hours:-0}" -gt "$max_backup_age_hours" ]; then
-              compliant=false
-            else
-              compliant=true
-            fi
-          else
-            compliant=false
-          fi
-
-          jq -n \
-            --argjson backup_service_exists "$backup_service_exists" \
-            --arg last_backup_age_hours "$last_backup_age_hours" \
-            --argjson retention_policy_days "$retention_policy_days" \
-            --argjson backup_timer_active "$backup_timer_active" \
-            --argjson compliant "$compliant" \
-            '{
-              backup_service_exists: $backup_service_exists,
-              last_backup_age_hours: $last_backup_age_hours,
-              retention_policy_days: $retention_policy_days,
-              backup_timer_active: $backup_timer_active,
-              compliant: $compliant
-            }'
-        '';
+      check = probeScript;
+      staticEvidence = null;
+      probeDescriptor = {
+        command = toString probeScript;
+        args = [];
+        timeoutSecs = 30;
+        expect = {compliant = true;};
+        schema = schemaVersion;
       };
     };
   };

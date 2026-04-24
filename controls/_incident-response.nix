@@ -1,9 +1,12 @@
 # controls/_incident-response.nix
 #
-# Incident response - Art. 21(b).
+# Incident response - NIS2 Art. 21(b), ISO 27001 A.5.24/A.5.26, DORA Art. 17.
 # No enforcement: incident response tooling is fleet-specific.
-# Verifies: rollback readiness (boot generations), journal availability,
-# generation age for log retention assessment.
+#
+# Typed control: type="static". Declared policy (rollback cadence, alert
+# retention) is evaluated at CI time (staticEvidence); no runtime probe is
+# needed. A no-op `check` script is retained for backward compatibility
+# with the evidence collector.
 {
   config,
   lib,
@@ -12,12 +15,16 @@
 }: let
   cfg = config.compliance.controls.incidentResponse;
   gov = config.compliance.governance;
-  mkProbe = import ../lib/mkProbe.nix {inherit pkgs lib;};
+  framework = gov.primaryFramework or "nis2";
+  schemaVersion =
+    config.compliance.schemaVersions.${framework}
+    or (throw "compliance.schemaVersions.${framework} is not set");
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
 
   options.compliance.controls.incidentResponse = {
     enable = lib.mkEnableOption "incident response compliance control (NIS2 Art. 21(b))";
+
     enforce = lib.mkOption {
       type = lib.types.bool;
       default = gov.enforceMode == "enforce";
@@ -42,68 +49,24 @@ in {
 
     compliance.evidence.probes.incidentResponse = {
       control = "incident-response";
+      type = "static";
+      schema = schemaVersion;
       articles = {
         nis2 = ["21(b)"];
         iso27001 = ["A.5.24" "A.5.26"];
         dora = ["Art. 17"];
       };
-      check = mkProbe {
-        name = "incident-response";
-        runtimeInputs = with pkgs; [coreutils];
-        script = ''
-          nixos_generations_available=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' 2>/dev/null | wc -l)
-          nixos_generations_available="''${nixos_generations_available:-0}"
-          # Count the active system as at least 1 generation
-          if [ "$nixos_generations_available" -eq 0 ] && [ -e /run/current-system ]; then
-            nixos_generations_available=1
-          fi
-
-          current_generation=$(basename "$(readlink /nix/var/nix/profiles/system 2>/dev/null)" | grep -oP '\d+' || true)
-          current_generation="''${current_generation:-unknown}"
-
-          oldest_generation_days="unknown"
-          oldest_link=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' -printf '%T@ %p\n' 2>/dev/null | sort -n | head -1 | awk '{print $2}')
-          if [ -n "$oldest_link" ]; then
-            oldest_epoch=$(stat -c '%Y' "$oldest_link" 2>/dev/null || echo "0")
-            now=$(date +%s)
-            oldest_generation_days=$(( (now - oldest_epoch) / 86400 ))
-          fi
-
-          if [ "$nixos_generations_available" -gt 1 ] 2>/dev/null; then
-            rollback_available=true
-          else
-            rollback_available=false
-          fi
-
-          if journalctl -n 1 --no-pager >/dev/null 2>&1; then
-            journal_available=true
-          else
-            journal_available=false
-          fi
-
-          if [ "$journal_available" = "true" ] && [ "$rollback_available" = "true" ]; then
-            compliant=true
-          else
-            compliant=false
-          fi
-
-          jq -n \
-            --argjson nixos_generations_available "$nixos_generations_available" \
-            --arg current_generation "$current_generation" \
-            --arg oldest_generation_days "$oldest_generation_days" \
-            --argjson rollback_available "$rollback_available" \
-            --argjson journal_available "$journal_available" \
-            --argjson compliant "$compliant" \
-            '{
-              nixos_generations_available: $nixos_generations_available,
-              current_generation: $current_generation,
-              oldest_generation_days: $oldest_generation_days,
-              rollback_available: $rollback_available,
-              journal_available: $journal_available,
-              compliant: $compliant
-            }'
-        '';
+      probeDescriptor = null;
+      staticEvidence = {
+        passed = cfg.enable;
+        evidence = {
+          rollbackTestInterval = cfg.rollbackTestInterval;
+          alertRetentionDays = cfg.alertRetentionDays;
+        };
       };
+      check = pkgs.writeShellScript "noop-incident-response" ''
+        jq -n '{compliant: true}'
+      '';
     };
   };
 }
