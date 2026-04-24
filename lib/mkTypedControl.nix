@@ -12,9 +12,10 @@
 #   "both"    — static evidence AT CI time + runtime probe on-host.
 #               Both projections share the `schema` version.
 #
-# Wraps `mkControl.nix` — existing control authoring ergonomics are
-# preserved; this module just adds type discrimination and schema
-# versioning at the outer layer.
+# Composes with `mkControl.nix` via module imports. Reading
+# `config.compliance.evidence.probes.${controlId}.check` works
+# because the module system merges both contributions before
+# attribute access is resolved.
 #
 # Usage:
 #   import ../lib/mkTypedControl.nix {
@@ -34,6 +35,8 @@
   type,
   schema,
   evaluate ? null, # required when type ∈ {"static", "both"}
+  expect ? {},
+  timeoutSecs ? 30,
 }:
 assert builtins.elem type ["static" "runtime" "both"];
 assert (type != "runtime") -> evaluate != null;
@@ -43,13 +46,9 @@ assert (type != "runtime") -> evaluate != null;
     pkgs,
     ...
   }: let
-    inner = import ./mkControl.nix {
-      inherit controlId controlDescription articles extraOptions rules;
-    } {inherit config lib pkgs;};
-
-    descriptorBuilder = (import ./probeDescriptor.nix {inherit lib;}).mkDescriptor;
-
-    staticHelper = (import ./evaluateStatic.nix {inherit lib;}).runStatic;
+    cfg = config.compliance.controls.${controlId};
+    descriptorBuilder = (import ./probeDescriptor.nix {}).mkDescriptor;
+    staticHelper = (import ./evaluateStatic.nix {}).runStatic;
 
     staticResult =
       if type == "runtime"
@@ -61,26 +60,22 @@ assert (type != "runtime") -> evaluate != null;
       then null
       else
         descriptorBuilder {
-          command = inner.config.compliance.evidence.probes.${controlId}.check;
+          command = config.compliance.evidence.probes.${controlId}.check;
           args = [];
-          timeoutSecs = 30;
-          expect = {}; # filled by individual controls via `extraOptions`
-          inherit schema;
+          inherit timeoutSecs expect schema;
         };
+  in {
+    imports = [
+      (import ./mkControl.nix {
+        inherit controlId controlDescription articles extraOptions rules;
+      })
+    ];
 
-    typedProbe =
-      inner.config.compliance.evidence.probes.${controlId}
-      // {
+    config = lib.mkIf cfg.enable {
+      compliance.evidence.probes.${controlId} = {
         inherit type schema;
         staticEvidence = staticResult;
         probeDescriptor = runtimeDescriptor;
       };
-  in
-    inner
-    // {
-      config =
-        inner.config
-        // {
-          compliance.evidence.probes.${controlId} = typedProbe;
-        };
-    }
+    };
+  }
