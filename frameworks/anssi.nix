@@ -22,6 +22,7 @@ in {
     ../controls/_authentication.nix
     ../controls/_secure-boot.nix
     ../controls/_network-segmentation.nix
+    ../controls/_agent-egress-exemption.nix
   ];
 
   options.compliance.frameworks.anssi = {

@@ -30,6 +30,7 @@ in {
     ../controls/_incident-response.nix
     ../controls/_network-segmentation.nix
     ../controls/_vulnerability-mgmt.nix
+    ../controls/_agent-egress-exemption.nix
   ];
 
   options.compliance.frameworks.dora = {

@@ -33,6 +33,7 @@ in {
     ../controls/_disaster-recovery.nix
     ../controls/_vulnerability-mgmt.nix
     ../controls/_authentication.nix
+    ../controls/_agent-egress-exemption.nix
   ];
 
   options.compliance.frameworks.nis2 = {
