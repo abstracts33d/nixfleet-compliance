@@ -34,8 +34,13 @@
 
   blacklistedModules = config.boot.blacklistedKernelModules or [];
 
-  # Static pass signal: core Yama/kptr declarations are present.
-  corePassed = (ptraceScope != null) && (kptrRestrict != null);
+  # Declaration intent: control enabled + at least one rule opted in.
+  # Runtime-observable sysctl values stay in `evidence` as informational
+  # for auditors; the runtime `probeDescriptor` verifies live state on
+  # the host. Static evidence answers "have we committed to the policy?",
+  # not "is it effective right now?" — that distinction matters in
+  # report-only mode where the policy is declared but not applied.
+  enabledRuleCount = builtins.length (lib.filter (n: cfg.rules.${n}.enable or false) (builtins.attrNames cfg.rules));
 in {
   imports = [../../evidence/options.nix ../../governance/options.nix];
 
@@ -44,8 +49,9 @@ in {
       type = "both";
       schema = schemaVersion;
       staticEvidence = {
-        passed = corePassed;
+        passed = cfg.enable && enabledRuleCount > 0;
         evidence = {
+          enabledRuleCount = enabledRuleCount;
           ptraceScope = ptraceScope;
           kptrRestrict = kptrRestrict;
           dmesgRestrict = dmesgRestrict;
