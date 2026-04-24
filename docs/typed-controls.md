@@ -63,6 +63,37 @@ Two projections let the control plane gate rollouts at CI time (static) AND let 
 
 If you enable a firewall-lock control (e.g. `networkSegmentation`), you MUST also enable `agentEgressExemption` with a declared `endpoint.host`. An assertion enforces this, and forgetting it will strand the agent.
 
+## Framework defaults and multi-framework fleets
+
+Each control has a default framework it is most naturally mapped to. The control reads `gov.primaryFramework or "<its-default>"` and looks up `compliance.schemaVersions.<framework>` to stamp its `probeDescriptor.schema`. If the corresponding `schemaVersions` key is not set, evaluation throws at the first access.
+
+Per-control defaults:
+
+| Control | Default framework |
+|---|---|
+| `authentication`, `accessControl`, `encryptionAtRest`, `networkSegmentation`, `assetInventory`, `backupRetention`, `disasterRecovery`, `keyManagement`, `vulnerabilityMgmt`, `agentEgressExemption`, `encryptionInTransit` | `anssi-bp028` |
+| `auditLogging` | `nis2` |
+| `secureBoot` | `dora` |
+| `baselineHardening` | `iso27001` |
+| `changeManagement` | `iso27001` |
+| `incidentResponse` | `nis2` |
+| `supplyChain` | `nis2` |
+
+**Single-framework fleet.** Enabling e.g. only `compliance.frameworks.anssi.enable = true` pulls the ANSSI framework module, which imports every control. Controls defaulting to a framework other than ANSSI (e.g. `auditLogging` → `nis2`) will still try to resolve `compliance.schemaVersions.nis2`. You MUST therefore set every `schemaVersions` key that any imported control references — not just the one for your primary framework.
+
+**Multi-framework fleet.** Set every relevant key explicitly:
+
+    compliance.schemaVersions = {
+      "anssi-bp028" = "anssi-bp028/v1";
+      "nis2" = "nis2/v1";
+      "dora" = "dora/v1";
+      "iso27001" = "iso27001/v1";
+    };
+
+**Override per-fleet.** A fleet that wants to coerce all controls to a single schema can set `gov.primaryFramework = "anssi-bp028"` — controls will then pick up ANSSI's schema regardless of their default. The per-control `articles` mapping still records which frameworks each control traces to.
+
+**Failure mode.** If a control's default framework is not in `schemaVersions`, evaluation throws with `compliance.schemaVersions.<framework> is not set`. The error is intentional — a silent fallback would pin typed probe outputs to the wrong schema and break agent-side handler routing.
+
 ## Breaking changes in this release
 
 - Probe submodule in `evidence/options.nix` gains `type`, `schema`, `staticEvidence`, `probeDescriptor` fields (all `nullOr ... default = null`; existing controls keep working).
