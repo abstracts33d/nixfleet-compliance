@@ -7,6 +7,16 @@
 # via module composition: the module system merges this attrset into the
 # probe entry declared by the rules engine.
 #
+# Static predicate inspects the actual NixOS audit options the runtime
+# probe (AL-02 in rules.nix) verifies via `systemctl is-active auditd`
+# + `auditctl -l`. AL-02's `config = {...}` already self-configures
+# these on enable, so the predicate passes when the rule is enabled
+# AND fails to a useful diagnostic if an operator override breaks it.
+# The previous `cfg.enable && enabledRuleCount > 0` counted the
+# module's internal rule attrset (always > 0 once enabled at strict
+# severity), making the gate vacuous on any framework-enabled fleet
+# — see issue #11.
+#
 # Assigned framework: NIS2 (reference "both"-type control for nis2).
 {
   config,
@@ -21,14 +31,18 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  auditdEnabled = config.services.auditd.enable or false;
-  rulesDeclared = config.security.audit.rules or [];
+  # Static predicate inputs — mirror what AL-02's runtime probe
+  # checks (`systemctl is-active auditd` + `auditctl -l > 0`).
+  # NixOS exposes the audit daemon at `security.auditd.enable`
+  # (NOT `services.auditd.*` — easy typo to make).
+  auditdEnabled = config.security.auditd.enable or false;
   auditEnabled = config.security.audit.enable or false;
+  rulesDeclared = config.security.audit.rules or [];
+  hasDeclaredRules = rulesDeclared != [];
 
-  # Declaration intent: control enabled + at least one rule opted in.
-  # Runtime-effective state (auditdEnabled etc.) stays in `evidence` as
-  # informational for auditors; the runtime `probeDescriptor` is the
-  # source of truth for "is the policy actually live on this host".
+  # Internal rule-slot count, kept as informational evidence so
+  # operators can correlate "did mkControl think this rule should
+  # be enabled?" with "did NixOS actually wire auditd?".
   enabledRuleCount = builtins.length (lib.filter (n: cfg.rules.${n}.enable or false) (builtins.attrNames cfg.rules));
 in {
   imports = [../../evidence/options.nix ../../governance/options.nix];
@@ -38,12 +52,15 @@ in {
       type = "both";
       schema = schemaVersion;
       staticEvidence = {
-        passed = cfg.enable && enabledRuleCount > 0;
+        # Predicate: NixOS audit subsystem actually wired (auditd
+        # service enabled, audit subsystem on, at least one rule
+        # declared). Mirrors AL-02's runtime compliance condition.
+        passed = auditdEnabled && auditEnabled && hasDeclaredRules;
         evidence = {
-          enabledRuleCount = enabledRuleCount;
           auditdEnabled = auditdEnabled;
           auditEnabled = auditEnabled;
-          rulesDeclared = rulesDeclared;
+          declaredRulesCount = builtins.length rulesDeclared;
+          enabledRuleCount = enabledRuleCount;
           retentionDays = cfg.retentionDays;
           forwardTo = cfg.forwardTo;
           adminEmail = cfg.adminEmail;

@@ -5,10 +5,16 @@
 # Verifies: TLS minimum version policy, certificate inventory,
 # expiring certificates, SSH host key presence.
 #
-# Typed control: type="both". Declared TLS policy is evaluated at CI
-# time (staticEvidence); a runtime probe inspects certificate stores and
-# SSH host keys. The legacy `check` script is retained for backward
-# compatibility with the evidence collector.
+# Typed control: type="both". Static predicate inspects the same
+# NixOS options the runtime probe later verifies on disk: sshd is
+# enabled with an ed25519 host key declared (the runtime probe
+# checks `/etc/ssh/ssh_host_ed25519_key.pub` exists), AND the
+# operator's declared `minTlsVersion` is in the modern set (the
+# enum constraint already ensures this, but explicit is better
+# than implicit). Cert-expiry is left to runtime — it's a fact
+# about the world, not the config. The previous predicate
+# `builtins.elem cfg.minTlsVersion ["1.2" "1.3"]` was tautological
+# given the option's enum type — see issue #11.
 {
   config,
   lib,
@@ -22,6 +28,17 @@
   schemaVersion =
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
+
+  # Static predicate inputs — mirror the runtime probe's
+  # `ssh_host_key_exists` check. NixOS will generate any host key
+  # declared in `services.openssh.hostKeys`; ed25519 is the modern
+  # default. The probe greps for the .pub at runtime; statically we
+  # check the type is in the declared set.
+  sshdEnabled = config.services.openssh.enable or false;
+  declaredHostKeyTypes =
+    map (k: k.type) (config.services.openssh.hostKeys or []);
+  sshEd25519HostKeyDeclared =
+    sshdEnabled && (builtins.elem "ed25519" declaredHostKeyTypes);
 
   probeScript = mkProbe {
     name = "encryption-in-transit";
@@ -123,10 +140,20 @@ in {
       };
       check = probeScript;
       staticEvidence = {
-        passed = builtins.elem cfg.minTlsVersion ["1.2" "1.3"];
+        # Predicate: sshd enabled with an ed25519 host key declared
+        # (mirrors the runtime probe's first compliance clause), AND
+        # the declared minTlsVersion is in the modern set. The
+        # previous predicate `builtins.elem cfg.minTlsVersion
+        # ["1.2" "1.3"]` was tautological given the option type
+        # enum — see issue #11.
+        passed =
+          sshEd25519HostKeyDeclared
+          && (cfg.minTlsVersion == "1.2" || cfg.minTlsVersion == "1.3");
         evidence = {
           declaredMinTlsVersion = cfg.minTlsVersion;
           certExpiryWarningDays = cfg.certExpiryWarningDays;
+          sshdEnabled = sshdEnabled;
+          sshEd25519HostKeyDeclared = sshEd25519HostKeyDeclared;
         };
       };
       probeDescriptor = {

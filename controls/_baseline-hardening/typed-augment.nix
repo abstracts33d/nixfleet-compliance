@@ -34,13 +34,32 @@
 
   blacklistedModules = config.boot.blacklistedKernelModules or [];
 
-  # Declaration intent: control enabled + at least one rule opted in.
-  # Runtime-observable sysctl values stay in `evidence` as informational
-  # for auditors; the runtime `probeDescriptor` verifies live state on
-  # the host. Static evidence answers "have we committed to the policy?",
-  # not "is it effective right now?" — that distinction matters in
-  # report-only mode where the policy is declared but not applied.
   enabledRuleCount = builtins.length (lib.filter (n: cfg.rules.${n}.enable or false) (builtins.attrNames cfg.rules));
+
+  # Static predicate inputs — inspect that the *essential* hardening
+  # sysctls are set to safe values. Mirrors what the per-rule runtime
+  # probes verify via `sysctl -a | grep`. Rules already self-configure
+  # these via their `config = {...}` blocks; predicate just confirms
+  # the merged NixOS config produces the expected values.
+  #
+  # "Essential" here is a curated subset — the sysctls every NIS2/
+  # ANSSI-aligned NixOS host should have set, regardless of host type.
+  # Optional ones (kernel.modules_disabled — breaks dynamic loading;
+  # kernel.yama.ptrace_scope = 2 — breaks gdb attach) are reported in
+  # evidence but not gating, since they're often relaxed for
+  # workstations or development servers.
+  # Helper: treat null as 0 for the >= comparison. Nix's `or`
+  # operator only works in attribute-access context, not on plain
+  # variables, so an explicit if/else here.
+  intOr0 = x:
+    if x == null
+    then 0
+    else x;
+  hardenedKptrRestrict = intOr0 kptrRestrict >= 1;
+  hardenedDmesgRestrict = intOr0 dmesgRestrict >= 1;
+  hardenedAslr = intOr0 randomizeVaSpace >= 2;
+  hardenedSymlinks = intOr0 protectedSymlinks >= 1;
+  hardenedHardlinks = intOr0 protectedHardlinks >= 1;
 in {
   imports = [../../evidence/options.nix ../../governance/options.nix];
 
@@ -49,7 +68,19 @@ in {
       type = "both";
       schema = schemaVersion;
       staticEvidence = {
-        passed = cfg.enable && enabledRuleCount > 0;
+        # Predicate: essential hardening sysctls all set to safe
+        # values (kptr_restrict ≥ 1, dmesg_restrict ≥ 1,
+        # randomize_va_space = 2, protected_{sym,hard}links = 1).
+        # The previous `cfg.enable && enabledRuleCount > 0` counted
+        # the module's internal rule attrset (always > 0 once
+        # enabled at strict severity), making the gate vacuous on
+        # any framework-enabled fleet — see issue #11.
+        passed =
+          hardenedKptrRestrict
+          && hardenedDmesgRestrict
+          && hardenedAslr
+          && hardenedSymlinks
+          && hardenedHardlinks;
         evidence = {
           enabledRuleCount = enabledRuleCount;
           ptraceScope = ptraceScope;
