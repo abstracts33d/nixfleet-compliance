@@ -17,7 +17,15 @@
       nis2 = ["21(a)"];
     };
     config = {lib, ...}: {
-      boot.kernelParams = ["iommu=force"];
+      # `iommu=force` alone is insufficient — the kernel needs the
+      # per-arch toggle to actually register IOMMU domains in
+      # /sys/class/iommu/. Caught on lab (Intel M70q, VT-d
+      # supported, DMAR detected by ACPI, `iommu=force` set, but
+      # /sys/class/iommu/ was empty because intel_iommu=on wasn't
+      # passed). `intel_iommu=on` is ignored on AMD CPUs and
+      # vice-versa, so setting both is harmless and keeps the rule
+      # arch-agnostic without threading gov.architecture through.
+      boot.kernelParams = ["iommu=force" "intel_iommu=on" "amd_iommu=on"];
     };
     check = {mkProbe, ...}:
       mkProbe {

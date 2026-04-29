@@ -1,11 +1,15 @@
 # controls/_backup-retention.nix
 #
-# Backup retention - Art. 21(c).
-# No enforcement: backup setup is the fleet's job.
-# Verifies: backup service existence, last backup age, retention policy,
-# timer state. Works with or without nixfleet's _backup scope.
+# Backup retention - Art. 21(c). No enforcement: backup wiring is the
+# consumer's job. Topology-aware: hosts that *receive* backups
+# (services.restic.server.enable, services.borgbackup.repos) are
+# attested as compliant by definition — clients attest data freshness
+# via their probes. Clients query their backup-shaped service unit's
+# last `Result=success` + `InactiveEnterTimestamp` instead of looking
+# for archive files in /var/lib/nixfleet-backup (which holds only the
+# restic cache on a centralized push setup).
 #
-# Typed control: type="runtime". Emits a CONTRACTS §I.3 probeDescriptor
+# Typed control: type="both". Emits a CONTRACTS §I.3 probeDescriptor
 # alongside the legacy `check` script for evidence collector backward
 # compatibility.
 {
@@ -22,100 +26,168 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  # Static predicate inputs — mirror the runtime probe's first
-  # gate (`backup_timer_active || backup_service_exists`). The
-  # runtime probe greps systemd units for "backup" via
-  # `systemctl list-units`. Statically we widen the search to
-  # cover the typical NixOS backup flavors that ship custom unit
-  # names without a literal "backup" substring (e.g. restic-server,
-  # borgbackup-* jobs, etc.) — the runtime probe should follow.
   serviceNames = builtins.attrNames (config.systemd.services or {});
   timerNames = builtins.attrNames (config.systemd.timers or {});
   allUnitNames = serviceNames ++ timerNames;
-  hasBackupShapedUnit = lib.any (
-    n: let
-      lower = lib.toLower n;
-    in
-      lib.hasInfix "backup" lower
-      || lib.hasInfix "restic" lower
-      || lib.hasInfix "borg" lower
-  )
-  allUnitNames;
-  # Native NixOS option signals — accepted as additional positive
-  # evidence even if no service/timer matches the name heuristic
-  # (e.g. an operator using a wholly-custom backup mechanism that
-  # happens to flip these flags on without touching unit names).
+
+  # Server-side unit shapes: a host *receiving* backups. Detect by name
+  # because consumers wire restic-rest-server / borgbackup-repo via custom
+  # modules as often as via the upstream NixOS options, and the typed
+  # options miss the custom path.
+  isBackupServerUnit = n: let
+    lower = lib.toLower n;
+  in
+    lib.hasInfix "rest-server" lower
+    || lib.hasInfix "server-prune" lower
+    || lib.hasInfix "borgbackup-repo" lower;
+
+  # Init / one-shot units that are NOT recurring backups; excluded so the
+  # client-unit list doesn't pick up something like `restic-repo-init`
+  # (runs once at provisioning, then dormant).
+  isBackupInitUnit = n: let
+    lower = lib.toLower n;
+  in
+    lib.hasSuffix "-init" lower
+    || lib.hasInfix "-init-" lower
+    || lib.hasSuffix "-bootstrap" lower
+    || lib.hasInfix "-bootstrap-" lower;
+
+  isBackupy = n: let
+    lower = lib.toLower n;
+  in
+    lib.hasInfix "backup" lower
+    || lib.hasInfix "restic" lower
+    || lib.hasInfix "borg" lower;
+
+  # Topology: server detection covers both the upstream typed options
+  # AND any declared server-shaped unit (custom modules count too).
+  isBackupServer =
+    (config.services.restic.server.enable or false)
+    || ((config.services.borgbackup.repos or {}) != {})
+    || lib.any isBackupServerUnit allUnitNames;
+
+  isClientBackupName = n:
+    isBackupy n
+    && !(isBackupServerUnit n)
+    && !(isBackupInitUnit n);
+
+  hasBackupShapedUnit = lib.any isBackupy allUnitNames;
+  clientBackupUnits = lib.filter isClientBackupName serviceNames;
+
   resticBackupsConfigured =
     (config.services.restic.backups or {}) != {};
   borgJobsConfigured =
     (config.services.borgbackup.jobs or {}) != {};
   backupIntentDeclared =
-    hasBackupShapedUnit
+    isBackupServer
+    || hasBackupShapedUnit
     || resticBackupsConfigured
     || borgJobsConfigured;
 
+  # The probe inspects systemd unit state directly — `Result=success`
+  # plus `InactiveEnterTimestamp` for oneshots — instead of grovelling
+  # for backup files in `/var/lib/nixfleet-backup`. The old approach
+  # broke on every centralized topology: clients hold a restic cache
+  # (no archives), servers hold archives under a different path. Unit
+  # state is the source of truth about whether the last run succeeded.
+  clientUnitList = lib.concatStringsSep " " clientBackupUnits;
+
   probeScript = mkProbe {
     name = "backup-retention";
-    runtimeInputs = with pkgs; [systemd findutils];
+    runtimeInputs = with pkgs; [systemd coreutils];
     script = ''
-      if systemctl list-units --type=service --type=timer --all 2>/dev/null | grep -qi "backup"; then
-        backup_service_exists=true
-      else
-        backup_service_exists=false
+      retention_policy_days=${toString cfg.retentionDays}
+      max_backup_age_hours="${toString cfg.maxBackupAgeHours}"
+      is_server="${
+        if isBackupServer
+        then "true"
+        else "false"
+      }"
+
+      if [ "$is_server" = "true" ]; then
+        # Backup destination — clients attest data freshness via their probes.
+        jq -n \
+          --argjson compliant true \
+          --argjson retention_policy_days "$retention_policy_days" \
+          '{compliant: $compliant, role: "server", retention_policy_days: $retention_policy_days}'
+        exit 0
       fi
 
-      last_backup_age_hours="unknown"
-      backup_dir=""
-      if [ -d /var/lib/nixfleet-backup ]; then
-        backup_dir="/var/lib/nixfleet-backup"
-      elif [ -d /var/backup ]; then
-        backup_dir="/var/backup"
+      # Client path: pick the first declared backup-shaped service and
+      # check its last-run state. Empty list = no client backup wired.
+      declared_units="${clientUnitList}"
+      service_unit=""
+      for u in $declared_units; do
+        case "$u" in
+          *.service) service_unit="$u"; break ;;
+          *) service_unit="$u.service"; break ;;
+        esac
+      done
+
+      if [ -z "$service_unit" ]; then
+        jq -n \
+          --argjson compliant false \
+          --argjson retention_policy_days "$retention_policy_days" \
+          '{compliant: $compliant, role: "client", reason: "no backup-shaped service unit declared"}'
+        exit 0
       fi
-      if [ -n "$backup_dir" ]; then
-        newest=$(find "$backup_dir" -type f -printf '%T@\n' 2>/dev/null | sort -rn | head -1)
-        if [ -n "$newest" ]; then
-          now=$(date +%s)
-          newest_sec=$(printf '%.0f' "$newest")
-          age_hours=$(( (now - newest_sec) / 3600 ))
-          last_backup_age_hours="$age_hours"
+
+      result=$(systemctl show "$service_unit" --property=Result --value 2>/dev/null)
+      inactive_ts=$(systemctl show "$service_unit" --property=InactiveEnterTimestamp --value 2>/dev/null)
+
+      # Fall back to the timer's last-trigger when the service hasn't run
+      # since boot — `Result` is "success" by default for an inactive unit
+      # and `InactiveEnterTimestamp` is empty until the unit has actually
+      # finished a run. On a freshly-rebooted host this would otherwise
+      # mis-report "result=success but InactiveEnterTimestamp unparseable".
+      last_run_age_hours="unknown"
+      ts_source=""
+      if [ -n "$inactive_ts" ]; then
+        ts_epoch=$(date -d "$inactive_ts" +%s 2>/dev/null || echo 0)
+        if [ "$ts_epoch" -gt 0 ]; then
+          now_epoch=$(date +%s)
+          last_run_age_hours=$(( (now_epoch - ts_epoch) / 3600 ))
+          ts_source="service.InactiveEnterTimestamp"
+        fi
+      fi
+      if [ "$last_run_age_hours" = "unknown" ]; then
+        timer_unit="''${service_unit%.service}.timer"
+        last_trigger=$(systemctl show "$timer_unit" --property=LastTriggerUSec --value 2>/dev/null)
+        if [ -n "$last_trigger" ] && [ "$last_trigger" != "0" ] && [ "$last_trigger" != "n/a" ]; then
+          ts_epoch=$(date -d "$last_trigger" +%s 2>/dev/null || echo 0)
+          if [ "$ts_epoch" -gt 0 ]; then
+            now_epoch=$(date +%s)
+            last_run_age_hours=$(( (now_epoch - ts_epoch) / 3600 ))
+            ts_source="timer.LastTriggerUSec"
+          fi
         fi
       fi
 
-      retention_policy_days=${toString cfg.retentionDays}
-      max_backup_age_hours="${toString cfg.maxBackupAgeHours}"
-
-      if systemctl list-timers --all 2>/dev/null | grep -qi "backup"; then
-        backup_timer_active=true
-      else
-        backup_timer_active=false
-      fi
-
-      if [ "$backup_timer_active" = "true" ] || [ "$backup_service_exists" = "true" ]; then
-        if [ "$last_backup_age_hours" = "unknown" ]; then
-          # Timer/service exists but no backup files found - not compliant
-          compliant=false
-        elif [ "''${last_backup_age_hours:-0}" -gt "$max_backup_age_hours" ]; then
-          compliant=false
+      compliant=false
+      reason=""
+      if [ "$result" = "success" ]; then
+        if [ "$last_run_age_hours" = "unknown" ]; then
+          reason="no recorded run since boot (service.InactiveEnterTimestamp + timer.LastTriggerUSec both empty)"
+        elif [ "$last_run_age_hours" -gt "$max_backup_age_hours" ]; then
+          reason="last run $last_run_age_hours h ago > $max_backup_age_hours h (source: $ts_source)"
         else
           compliant=true
         fi
+      elif [ -z "$result" ] || [ "$result" = "" ]; then
+        reason="unit $service_unit not present at runtime"
       else
-        compliant=false
+        reason="last run Result=$result"
       fi
 
       jq -n \
-        --argjson backup_service_exists "$backup_service_exists" \
-        --arg last_backup_age_hours "$last_backup_age_hours" \
+        --arg unit "$service_unit" \
+        --arg result "$result" \
+        --arg last_run_age_hours "$last_run_age_hours" \
+        --arg ts_source "$ts_source" \
         --argjson retention_policy_days "$retention_policy_days" \
-        --argjson backup_timer_active "$backup_timer_active" \
         --argjson compliant "$compliant" \
-        '{
-          backup_service_exists: $backup_service_exists,
-          last_backup_age_hours: $last_backup_age_hours,
-          retention_policy_days: $retention_policy_days,
-          backup_timer_active: $backup_timer_active,
-          compliant: $compliant
-        }'
+        --arg reason "$reason" \
+        '{compliant: $compliant, role: "client", unit: $unit, result: $result, last_run_age_hours: $last_run_age_hours, ts_source: $ts_source, retention_policy_days: $retention_policy_days, reason: $reason}'
     '';
   };
 in {
@@ -162,19 +234,15 @@ in {
       };
       check = probeScript;
       staticEvidence = {
-        # Predicate: some declared backup mechanism is wired on this
-        # host. Mirrors the runtime probe's `backup_timer_active ||
-        # backup_service_exists` first gate, but widened to recognise
-        # the common NixOS backup flavors (restic, borg) by name OR
-        # by typed-options presence. Backup *freshness* (last backup
-        # ≤ maxBackupAgeHours) is intentionally NOT in the static
-        # predicate — it's a fact about the world, runtime probe's
-        # job. The previous `null` static gave operators no eval-
-        # time signal that they'd forgotten to wire backups at all
-        # — see issue #11.
+        # Predicate: a backup mechanism is declared — as a destination
+        # (server) or as a client. Freshness is the runtime probe's
+        # concern; the static gate just catches "operator forgot to
+        # wire backups at all" (issue #11).
         passed = backupIntentDeclared;
         evidence = {
+          isBackupServer = isBackupServer;
           hasBackupShapedUnit = hasBackupShapedUnit;
+          clientBackupUnits = clientBackupUnits;
           resticBackupsConfigured = resticBackupsConfigured;
           borgJobsConfigured = borgJobsConfigured;
           retentionDays = cfg.retentionDays;
