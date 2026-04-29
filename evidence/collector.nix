@@ -39,10 +39,22 @@ in {
   config = lib.mkIf cfg.collector.enable {
     systemd.services.compliance-evidence-collector = {
       description = "NixFleet Compliance Evidence Collector";
+      # Run after every NixOS activation so freshly-deployed hosts
+      # have evidence without waiting for the next timer tick.
+      # Combined with the timer below, this gives "always within one
+      # collector interval of fresh", with deploys getting immediate
+      # coverage. `wantedBy = multi-user.target` also makes the
+      # service start on every boot.
+      wantedBy = ["multi-user.target"];
       serviceConfig = {
         Type = "oneshot";
         ExecStart = "${runner}/bin/compliance-probe-runner ${cfg.collector.outputDir} ${probeDir}";
         StateDirectory = "nixfleet-compliance";
+        # 0755 so any user can read evidence.json. The probe runner
+        # writes the file mode 0644 (see probe-runner.sh). Operator
+        # CLIs (compliance-check, future audit tools) read the file
+        # without privilege; only the collector itself writes.
+        StateDirectoryMode = "0755";
         # Hardening - probes are read-only system inspectors.
         # They need to see real system state (mounts, sysctls, services).
         NoNewPrivileges = true;
