@@ -22,6 +22,24 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
+  # Static predicate inputs - mirror what the runtime probe verifies.
+  # The runtime probe gates on:
+  #   1. flake_lock_days ≤ inputStalenessWarningDays (a fact about the
+  #      world - the deployed flake.lock's mtime; can't be checked
+  #      statically).
+  #   2. If sbomGeneration: the SBOM file exists.
+  #
+  # For (2) we can statically verify the SBOM-generator systemd
+  # service is wired (it writes the file at boot). For (1) we can
+  # only verify the threshold is non-trivial; the actual age check
+  # lives at runtime where it belongs.
+  sbomServiceWired =
+    config.systemd.services ? compliance-sbom-generator
+    && config.systemd.services.compliance-sbom-generator.enable or false;
+  sbomRequirementSatisfiedStatically =
+    (!cfg.sbomGeneration) || sbomServiceWired;
+  stalenessThresholdReasonable = cfg.inputStalenessWarningDays > 0;
+
   probeScript = mkProbe {
     name = "supply-chain";
     runtimeInputs = with pkgs; [coreutils findutils gnugrep jq];
@@ -150,9 +168,16 @@ in {
       };
       check = probeScript;
       staticEvidence = {
-        passed = cfg.enable;
+        # Predicate: SBOM generation is wired when required (matches
+        # the runtime probe's `sbom_required -> sbom_present` clause)
+        # AND the staleness threshold is non-trivial. The previous
+        # `passed = cfg.enable` was tautological - see issue #11.
+        # flake.lock age is a runtime fact and stays in the runtime
+        # probe.
+        passed = sbomRequirementSatisfiedStatically && stalenessThresholdReasonable;
         evidence = {
           sbomGeneration = cfg.sbomGeneration;
+          sbomServiceWired = sbomServiceWired;
           inputStalenessWarningDays = cfg.inputStalenessWarningDays;
           enforce = cfg.enforce;
         };

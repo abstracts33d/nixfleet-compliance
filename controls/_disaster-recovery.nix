@@ -118,7 +118,7 @@ in {
 
     compliance.evidence.probes.disasterRecovery = {
       control = "disaster-recovery";
-      type = "runtime";
+      type = "both";
       schema = schemaVersion;
       articles = {
         nis2 = ["21(c)"];
@@ -126,7 +126,21 @@ in {
         dora = ["Art. 12"];
       };
       check = probeScript;
-      staticEvidence = null;
+      # Predicate: bootloader retains ≥ minGenerations previous
+      # generations for recovery. Was `null` (no static gate) - issue
+      # #11 audit. Runtime probe verifies actual on-disk generation
+      # presence; static check verifies the *config* allows it.
+      staticEvidence = let
+        configurationLimit = config.boot.loader.systemd-boot.configurationLimit or 0;
+      in {
+        passed = configurationLimit >= cfg.minGenerations;
+        evidence = {
+          configurationLimit = configurationLimit;
+          minGenerations = cfg.minGenerations;
+          rtoTarget = cfg.rtoTarget;
+          testInterval = cfg.testInterval;
+        };
+      };
       probeDescriptor = {
         command = toString probeScript;
         args = [];

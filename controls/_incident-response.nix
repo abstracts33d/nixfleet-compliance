@@ -3,10 +3,10 @@
 # Incident response - NIS2 Art. 21(b), ISO 27001 A.5.24/A.5.26, DORA Art. 17.
 # No enforcement: incident response tooling is fleet-specific.
 #
-# Typed control: type="static". Declared policy (rollback cadence, alert
-# retention) is evaluated at CI time (staticEvidence); no runtime probe is
-# needed. A no-op `check` script is retained for backward compatibility
-# with the evidence collector.
+# Typed control: type="static". Predicate inspects whether the host has
+# rollback infrastructure (bootloader retains previous generations) and
+# the operator's declared alert retention is non-trivial. The previous
+# predicate `passed = cfg.enable` was tautological - see issue #11.
 {
   config,
   lib,
@@ -19,6 +19,15 @@
   schemaVersion =
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
+
+  # Rollback headroom - bootloader retains ≥1 previous generation so
+  # an operator can revert if a deploy goes bad. This is the
+  # incident-response-flavoured read of "we kept a known-good state
+  # for recovery". Mirrors the analogous check in change-management
+  # (#11) - the two controls are different framing on the same
+  # underlying property.
+  configurationLimit = config.boot.loader.systemd-boot.configurationLimit or 0;
+  hasRollbackInfrastructure = configurationLimit >= 1;
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
 
@@ -58,8 +67,13 @@ in {
       };
       probeDescriptor = null;
       staticEvidence = {
-        passed = cfg.enable;
+        # Predicate: rollback infrastructure present AND non-trivial
+        # alert retention declared. The previous tautology `cfg.enable`
+        # made the control a no-op - see issue #11.
+        passed = hasRollbackInfrastructure && cfg.alertRetentionDays > 0;
         evidence = {
+          hasRollbackInfrastructure = hasRollbackInfrastructure;
+          configurationLimit = configurationLimit;
           rollbackTestInterval = cfg.rollbackTestInterval;
           alertRetentionDays = cfg.alertRetentionDays;
         };

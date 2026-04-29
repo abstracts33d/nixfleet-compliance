@@ -1,13 +1,26 @@
 # controls/_authentication.nix
 #
 # Authentication - Art. 21(j).
-# No enforcement: MFA/auth config is fleet-specific via PAM, Keycloak, etc.
-# Verifies: MFA policy, PAM modules, SSH certificate auth,
-# system account inventory.
+# Module wires nothing on its own - MFA/auth config is fleet-specific
+# (PAM stacks, Keycloak, U2F hardware, etc.). Verifies: MFA policy,
+# PAM modules, SSH certificate auth, system account inventory.
 #
-# Typed control: type="runtime". Emits a CONTRACTS §I.3 probeDescriptor
-# alongside the legacy `check` script for evidence collector backward
-# compatibility.
+# Typed control: type="both". Static predicate mirrors the runtime
+# probe's compliance condition exactly:
+#
+#   - When `mfaRequired = false` the runtime probe shorts to
+#     `compliant=true`; the static predicate does the same.
+#   - When `mfaRequired = true` the runtime probe expects a known
+#     MFA PAM module (u2f / google / duo / oath) loaded at sshd time;
+#     the static predicate looks for the equivalent declaratively-
+#     wired NixOS options on `security.pam.services.sshd`.
+#
+# Best-effort declarative detection - operators using non-NixOS-native
+# MFA stacks (e.g. raw `text =` PAM bodies sourcing custom modules)
+# may need to set `mfaRequired = false` and rely on the runtime probe
+# alone. The runtime probe is the source of truth; the static predicate
+# is the "catch operator overrides at fleet-eval time" defense-in-depth
+# layer.
 {
   config,
   lib,
@@ -21,6 +34,22 @@
   schemaVersion =
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
+
+  # Static predicate inputs - mirror the runtime probe's MFA check.
+  # The runtime probe greps `pam_(u2f|google|duo|oath)` from
+  # `/etc/pam.d/sshd`; declaratively, NixOS exposes these as typed
+  # options on `security.pam.services.sshd` (googleAuthenticator,
+  # u2fAuth) plus a free-form `text` field that picks up other
+  # modules. Best-effort coverage:
+  pamSshd = config.security.pam.services.sshd or {};
+  pamSshdText = pamSshd.text or "";
+  declarativeMfaPresent =
+    (pamSshd.googleAuthenticator.enable or false)
+    || (pamSshd.u2fAuth or false)
+    || (lib.hasInfix "pam_u2f" pamSshdText)
+    || (lib.hasInfix "pam_google_authenticator" pamSshdText)
+    || (lib.hasInfix "pam_oath" pamSshdText)
+    || (lib.hasInfix "pam_duo" pamSshdText);
 
   probeScript = mkProbe {
     name = "authentication";
@@ -118,7 +147,7 @@ in {
 
     compliance.evidence.probes.authentication = {
       control = "authentication";
-      type = "runtime";
+      type = "both";
       schema = schemaVersion;
       articles = {
         nis2 = ["21(j)"];
@@ -126,7 +155,22 @@ in {
         dora = ["Art. 9"];
       };
       check = probeScript;
-      staticEvidence = null;
+      # Static predicate mirrors the runtime probe's `compliant`
+      # condition (lines 60-69 of the probe script). When mfaRequired
+      # is false the predicate passes unconditionally (matching the
+      # runtime short-circuit). When true, declarativeMfaPresent must
+      # be true - i.e. some known MFA-enabling NixOS option is wired
+      # on `security.pam.services.sshd`. Static FAIL surfaces operator
+      # overrides like `mfaRequired = lib.mkForce true` without any
+      # MFA stack at fleet-eval time, before deploy.
+      staticEvidence = {
+        passed = (!cfg.mfaRequired) || declarativeMfaPresent;
+        evidence = {
+          mfaRequired = cfg.mfaRequired;
+          declarativeMfaPresent = declarativeMfaPresent;
+          maxServiceAccounts = cfg.maxServiceAccounts;
+        };
+      };
       probeDescriptor = {
         command = toString probeScript;
         args = [];

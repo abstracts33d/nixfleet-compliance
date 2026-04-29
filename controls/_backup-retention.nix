@@ -22,6 +22,38 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
+  # Static predicate inputs - mirror the runtime probe's first
+  # gate (`backup_timer_active || backup_service_exists`). The
+  # runtime probe greps systemd units for "backup" via
+  # `systemctl list-units`. Statically we widen the search to
+  # cover the typical NixOS backup flavors that ship custom unit
+  # names without a literal "backup" substring (e.g. restic-server,
+  # borgbackup-* jobs, etc.) - the runtime probe should follow.
+  serviceNames = builtins.attrNames (config.systemd.services or {});
+  timerNames = builtins.attrNames (config.systemd.timers or {});
+  allUnitNames = serviceNames ++ timerNames;
+  hasBackupShapedUnit = lib.any (
+    n: let
+      lower = lib.toLower n;
+    in
+      lib.hasInfix "backup" lower
+      || lib.hasInfix "restic" lower
+      || lib.hasInfix "borg" lower
+  )
+  allUnitNames;
+  # Native NixOS option signals - accepted as additional positive
+  # evidence even if no service/timer matches the name heuristic
+  # (e.g. an operator using a wholly-custom backup mechanism that
+  # happens to flip these flags on without touching unit names).
+  resticBackupsConfigured =
+    (config.services.restic.backups or {}) != {};
+  borgJobsConfigured =
+    (config.services.borgbackup.jobs or {}) != {};
+  backupIntentDeclared =
+    hasBackupShapedUnit
+    || resticBackupsConfigured
+    || borgJobsConfigured;
+
   probeScript = mkProbe {
     name = "backup-retention";
     runtimeInputs = with pkgs; [systemd findutils];
@@ -121,7 +153,7 @@ in {
 
     compliance.evidence.probes.backupRetention = {
       control = "backup-retention";
-      type = "runtime";
+      type = "both";
       schema = schemaVersion;
       articles = {
         nis2 = ["21(c)"];
@@ -129,7 +161,27 @@ in {
         dora = ["Art. 12"];
       };
       check = probeScript;
-      staticEvidence = null;
+      staticEvidence = {
+        # Predicate: some declared backup mechanism is wired on this
+        # host. Mirrors the runtime probe's `backup_timer_active ||
+        # backup_service_exists` first gate, but widened to recognise
+        # the common NixOS backup flavors (restic, borg) by name OR
+        # by typed-options presence. Backup *freshness* (last backup
+        # ≤ maxBackupAgeHours) is intentionally NOT in the static
+        # predicate - it's a fact about the world, runtime probe's
+        # job. The previous `null` static gave operators no eval-
+        # time signal that they'd forgotten to wire backups at all
+        # - see issue #11.
+        passed = backupIntentDeclared;
+        evidence = {
+          hasBackupShapedUnit = hasBackupShapedUnit;
+          resticBackupsConfigured = resticBackupsConfigured;
+          borgJobsConfigured = borgJobsConfigured;
+          retentionDays = cfg.retentionDays;
+          maxBackupAgeHours = cfg.maxBackupAgeHours;
+          verifyInterval = cfg.verifyInterval;
+        };
+      };
       probeDescriptor = {
         command = toString probeScript;
         args = [];
