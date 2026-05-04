@@ -1,14 +1,7 @@
-# Dormant. Lab forgejo (.forgejo/workflows/ci.yml) is the primary CI
-# path — the operator pushes to lab as the source of truth. This
-# workflow only runs if someone pushes the same ref to github, which
-# is intended as off-site backup / second-opinion validation. Keep
-# in sync with .forgejo/workflows/ci.yml when the eval matrix changes.
 name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -19,15 +12,10 @@ concurrency:
 jobs:
   check:
     name: Format + eval
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: native
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-        with:
-          extra-conf: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Check formatting
         run: nix fmt -- --check .
       - name: Run eval checks
@@ -36,7 +24,7 @@ jobs:
             --apply 'cs: builtins.concatStringsSep " " (builtins.filter (n: builtins.match "eval-.*" n != null) (builtins.attrNames cs))' \
             --raw)
           if [ -z "$CHECKS" ]; then
-            echo "::warning::No eval checks found"
+            echo "No eval checks found"
             exit 0
           fi
           for check in $CHECKS; do
