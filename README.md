@@ -1,155 +1,53 @@
 # NixFleet Compliance
 
-Regulatory compliance controls for NixOS infrastructure. Enforce security measures and produce cryptographic evidence - all as declarative NixOS modules.
+[![CI](https://github.com/arcanesys/nixfleet-compliance/actions/workflows/ci.yml/badge.svg)](https://github.com/arcanesys/nixfleet-compliance/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE-MIT)
+[![Latest tag](https://img.shields.io/github/v/tag/arcanesys/nixfleet-compliance?label=version&sort=semver)](https://github.com/arcanesys/nixfleet-compliance/releases)
 
-Works with [NixFleet](https://github.com/arcanesys/nixfleet) or standalone on any NixOS system.
+Compliance controls for NixOS that **gate releases** instead of just observing them. Static predicates fail the build before a non-compliant closure can ship; runtime probes produce signed evidence and block wave promotion when they fail. Works with [NixFleet](https://github.com/arcanesys/nixfleet) for fleet-wide enforcement, or standalone on any NixOS host for local hardening and evidence collection.
 
-## Quick Start
+## Who this is for
 
-```nix
-# flake.nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    compliance.url = "github:arcanesys/nixfleet-compliance";
-  };
+You are an RSSI or DSI under **NIS2** (Loi Résilience, transposition deadline 2027), **DORA** (applicable since 2025), **ISO 27001**, or **ANSSI BP-028**. You've been told "compliance as code" means installing another scanner. You don't want another scanner. You want an auditor-grade evidence chain you can produce on demand without trusting your scanner vendor.
 
-  outputs = {nixpkgs, compliance, ...}: {
-    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
-      modules = [
-        compliance.nixosModules.nis2
-        {
-          compliance.frameworks.nis2 = {
-            enable = true;
-            entityType = "essential";  # or "important"
-          };
-        }
-      ];
-    };
-  };
-}
-```
+**You don't need a fleet yet.** This module runs standalone on any NixOS host - one hardened bastion, one DMZ gateway, one SCADA jumpbox is enough to start producing signed evidence. NixFleet (the orchestration framework) becomes useful once you have several such hosts; until then, `nixfleet-compliance` standalone closes the audit point.
 
-This enables all 12 NIS2 controls with appropriate defaults:
-- **Baseline hardening** - 10 rules ported from ANSSI R7-R14 (IOMMU, kernel sysctls, IPv4/IPv6, filesystem)
-- **Audit logging** - journald persistence + auditd with execve tracking (ANSSI R33)
-- **Supply chain** - SBOM generation, flake.lock integrity, reproducibility attestation
-- **Asset inventory** - host, service, and network inventory from NixOS config
-- **Encryption** - LUKS verification, encrypted swap, TLS certificate inventory
-- **Access control** - SSH key-only auth, root login disabled, idle timeout
-- **And more** - backup retention, incident response, disaster recovery, vulnerability management, authentication, encryption in transit
+## Scanner vs. gate
 
-Evidence is collected hourly (essential) or daily (important) and written to `/var/lib/nixfleet-compliance/evidence.json`.
+A scanner tells you what's broken after the fact. This module:
 
-## What's Included
+1. **Refuses to build** non-compliant closures on `enforce`-mode channels. An SSH-password-auth host can't even produce a signable artifact for an ANSSI BP-028 channel.
+2. **Signs every probe output** with the host key - JCS-canonicalized, schema-versioned. An auditor handed a hostname and a date can verify the chain without trusting the control plane.
+3. **Blocks rollout waves** on runtime failure when integrated with NixFleet. A probe failure on wave 0 prevents wave 1 from promoting and triggers per-host rollback.
 
-- **16 technical controls** as NixOS modules (access control, encryption, audit logging, supply chain, baseline hardening, backup, incident response, disaster recovery, and more)
-- **4 framework presets** that activate the right controls with appropriate defaults
-- **Evidence probes** - each control generates JSON compliance proof collected hourly or daily
-- **Governance engine** - fleet-wide enforcement levels, host-type scoping, per-rule exceptions with mandatory rationale
-- **`compliance-check` CLI** - run all probes and get colored pass/fail output per control
+The module produces compliance proof, but the proof is a side-effect of the gate. The gate is the point.
 
-## Supported Frameworks
+## Coverage
 
-| Framework | Controls | Scope | Regulatory context |
-|-----------|----------|-------|--------------------|
-| **NIS2** | 12 | EU critical infrastructure | Directive 2022/2555 - covers essential and important entities with tiered audit schedules |
-| **DORA** | 9 | Financial sector | Regulation 2022/2554 - ICT risk management for credit institutions, investment firms, crypto-asset providers |
-| **ISO 27001** | 14 | Cross-sector certification | ISO/IEC 27001:2022 Annex A - full and partial certification scope |
-| **ANSSI BP-028** | 7 | French hardening | BP-028 v2.0 (Feb 2024) - 4 levels (minimal/intermediary/reinforced/high), 3 categories (base/client/server) |
+- **4 framework presets** - NIS2 (essential / important), DORA, ISO 27001, ANSSI BP-028 (4 levels) - activate the right controls with defaults appropriate to the regulatory profile.
+- **16 production controls** across access, encryption, audit, supply chain, baseline hardening, backup, incident response, disaster recovery, key management, network segmentation, secure boot, asset inventory, change management, vulnerability management, authentication, and agent egress. Plus one synthetic always-fail control (opt-in) for testing the rollback path end-to-end.
+- **Article-level coverage** of **CRA** (Cyber Resilience Act) and **SecNumCloud** on individual controls where those frameworks apply (e.g. secure boot, supply chain, key management, network segmentation).
+- **Governance engine** - per-channel mode (`disabled` / `permissive` / `enforce`), fleet-wide hardening level, host-type scoping, per-rule exceptions with mandatory rationale.
+- **`compliance-check` CLI** - read the latest signed evidence as any user, or re-run probes live (root, `--live`).
 
-Each framework preset sets governance defaults appropriate to the entity type or level. For example, NIS2 essential entities get hourly audits, 15-minute idle timeout, and MFA required, while important entities get daily audits with relaxed thresholds.
+## See it work
 
-## Individual Controls
+[nixfleet-demo](https://github.com/arcanesys/nixfleet-demo) ships with the NIS2 preset enabled on its control-plane host. Boot the 4-VM fleet, exercise the runtime gate, and inspect signed evidence locally.
 
-Don't need a full framework? Pick specific controls:
+## Pilot
 
-```nix
-modules = [
-  compliance.nixosModules.controls.supply-chain
-  compliance.nixosModules.controls.access-control
-  {
-    compliance.controls.supplyChain.enable = true;
-    compliance.controls.accessControl = {
-      enable = true;
-      idleTimeoutMinutes = 15;
-    };
-  }
-];
-```
+We deliver auditor-ready evidence packets - NIS2, DORA, ISO 27001, or ANSSI BP-028 - as part of our free 12-week pilots for regulated operators. Pilot scope can start at **one hardened host** (this module standalone, no fleet needed) or **one regulated zone** (5 to 15 hosts, full NixFleet orchestration, migration from Ansible / Puppet / Chef in scope). Both yield the same M3 deliverable: a signed evidence chain your auditor can verify without trusting us.
 
-## Governance
+Scope, deliverables, and what we ask for in return: <https://arcanesys.fr/en/pilot>.
 
-Fleet-wide policy knobs that all controls respect:
-
-```nix
-compliance.governance = {
-  enforceMode = "enforce";  # or "report" (probes only, no config changes)
-  level = "strict";          # minimal | standard | strict | paranoid
-  hostType = "server";       # server | workstation | appliance
-  exceptions."BH-07".rationale = "IPv6 required for internal mesh";
-};
-```
-
-## CLI
-
-Run `compliance-check` on any compliant host:
-
-```
-$ compliance-check
-NixFleet Compliance Check
-=========================
-Host: water-plant-01
-Date: 2026-04-17T14:30:00+00:00
-
-  PASS  baselineHardening          (nis2, anssi, iso27001)
-  PASS  auditLogging               (nis2, anssi, iso27001)
-  PASS  accessControl              (nis2, iso27001, dora)
-  FAIL  encryptionAtRest           (nis2, iso27001)
-
-Total: 16  Pass: 15  Fail: 1
-```
-
-Run with `VERBOSE=1` for detailed JSON output per control.
-
-## Evidence
-
-Each control produces evidence proving compliance:
-
-```json
-{
-  "host": "water-plant-01",
-  "timestamp": "2026-04-05T10:00:00Z",
-  "controls": [
-    {
-      "control": "baseline-hardening",
-      "status": "compliant",
-      "framework_articles": {
-        "nis2": ["21(a)", "21(g)"],
-        "iso27001": ["A.8.9", "A.8.8"]
-      },
-      "checks": {
-        "BH-03": {"compliant": true, "checks_passed": 5, "checks_total": 5},
-        "BH-06": {"compliant": true, "checks_passed": 19, "checks_total": 19}
-      }
-    }
-  ],
-  "overall": "16/16 controls compliant"
-}
-```
-
-## Framework Mappings
-
-Detailed article-by-article regulatory mappings are in the [docs/](docs/) directory:
-
-- [NIS2 Article 21 mapping](docs/nis2-mapping.md) - 10 sub-articles mapped to controls
-- [ISO 27001 Annex A mapping](docs/iso27001-mapping.md) - 14 Annex A controls covered
-- [DORA Chapter III mapping](docs/dora-mapping.md) - Articles 8, 9, 12, 17 mapped to controls
-- [ANSSI BP-028 mapping](docs/anssi-mapping.md) - R7-R14 hardening rules + additional controls
+Contact: <contact@arcanesys.fr>
 
 ## Documentation
 
-Full documentation (architecture, control reference, governance, evidence layer) is available at [arcanesys.github.io/nixfleet](https://arcanesys.github.io/nixfleet).
+- Framework mappings: [NIS2](docs/nis2-mapping.md) · [DORA](docs/dora-mapping.md) · [ISO 27001](docs/iso27001-mapping.md) · [ANSSI BP-028](docs/anssi-mapping.md)
+- Typed controls explainer: [`docs/typed-controls.md`](docs/typed-controls.md)
+- Synthetic control runbook: [`docs/synthetic-control-runbook.md`](docs/synthetic-control-runbook.md)
+- Full docs: [arcanesys.github.io/nixfleet](https://arcanesys.github.io/nixfleet)
 
 ## Contributing
 
