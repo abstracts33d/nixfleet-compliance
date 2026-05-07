@@ -26,7 +26,16 @@
   # for recovery". Mirrors the analogous check in change-management
   # (#11) - the two controls are different framing on the same
   # underlying property.
-  configurationLimit = config.boot.loader.systemd-boot.configurationLimit or 0;
+  # Same null-coercion as _disaster-recovery.nix (#14): NixOS option
+  # default is null; `or 0` doesn't fire on null, so `null >= 1` throws.
+  rawSdBoot = config.boot.loader.systemd-boot.configurationLimit or null;
+  rawGrub = config.boot.loader.grub.configurationLimit or null;
+  configurationLimit =
+    if rawSdBoot != null
+    then rawSdBoot
+    else if rawGrub != null
+    then rawGrub
+    else 0;
   hasRollbackInfrastructure = configurationLimit >= 1;
 in {
   imports = [../evidence/options.nix ../governance/options.nix];
