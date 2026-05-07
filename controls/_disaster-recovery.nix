@@ -131,7 +131,16 @@ in {
       # #11 audit. Runtime probe verifies actual on-disk generation
       # presence; static check verifies the *config* allows it.
       staticEvidence = let
-        configurationLimit = config.boot.loader.systemd-boot.configurationLimit or 0;
+        rawSdBoot = config.boot.loader.systemd-boot.configurationLimit or null;
+        rawGrub = config.boot.loader.grub.configurationLimit or null;
+        # Use whichever bootloader is actively configured. systemd-boot wins
+        # if both are set (NixOS asserts that at most one is enabled).
+        configurationLimit =
+          if rawSdBoot != null
+          then rawSdBoot
+          else if rawGrub != null
+          then rawGrub
+          else 0;
       in {
         passed = configurationLimit >= cfg.minGenerations;
         evidence = {
