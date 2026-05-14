@@ -91,7 +91,7 @@ jq -n \
 # 0644: the JSON is operator-visible state. Only this service
 # (running as root) writes; any user can read. compliance-check
 # and downstream consumers (future runtime gate in nixfleet) rely
-# on this - see abstracts33d/nixfleet-compliance#12.
+# on this - see #12.
 chmod 0644 "${output_dir}/evidence.json"
 
 echo "Evidence collected: ${compliant}/${total} controls compliant"
