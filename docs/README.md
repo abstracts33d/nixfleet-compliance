@@ -21,10 +21,10 @@ The doc tree splits by audience and lifecycle.
 
 | File | Topic |
 |------|-------|
-| [nis2-mapping.md](nis2-mapping.md) | NIS2 Directive 2022/2555 — Article 21 mapping by control |
-| [dora-mapping.md](dora-mapping.md) | DORA Regulation 2022/2554 — Chapter III mapping |
-| [iso27001-mapping.md](iso27001-mapping.md) | ISO/IEC 27001:2022 — Annex A mapping |
-| [anssi-mapping.md](anssi-mapping.md) | ANSSI BP-028 v2.0 — 4 hardening levels, 3 host categories |
+| [nis2-mapping.md](nis2-mapping.md) | NIS2 Directive 2022/2555 -- Article 21 mapping by control |
+| [dora-mapping.md](dora-mapping.md) | DORA Regulation 2022/2554 -- Chapter III mapping |
+| [iso27001-mapping.md](iso27001-mapping.md) | ISO/IEC 27001:2022 -- Annex A mapping |
+| [anssi-mapping.md](anssi-mapping.md) | ANSSI BP-028 v2.0 -- 4 hardening levels, 3 host categories |
 
 ## Runbooks
 
@@ -34,7 +34,7 @@ The doc tree splits by audience and lifecycle.
 
 ## Composed view (mdbook)
 
-The same content as a browseable book lives under [mdbook/](mdbook/). The wrapper files under `mdbook/src/` are 1-line `{{#include}}` shims that pull from the canonical sources above — no duplication. Configuration in [mdbook/book.toml](mdbook/book.toml); table of contents in [mdbook/src/SUMMARY.md](mdbook/src/SUMMARY.md).
+The same content as a browseable book lives under [mdbook/](mdbook/). The wrapper files under `mdbook/src/` are 1-line `{{#include}}` shims that pull from the canonical sources above -- no duplication. Configuration in [mdbook/book.toml](mdbook/book.toml); table of contents in [mdbook/src/SUMMARY.md](mdbook/src/SUMMARY.md).
 
 ## Top-level meta-files
 

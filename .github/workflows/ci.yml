@@ -1,4 +1,4 @@
-# Mirror of .forgejo/workflows/ci.yml — runs the same eval matrix on
+# Mirror of .forgejo/workflows/ci.yml -- runs the same eval matrix on
 # GitHub as off-site backup / second-opinion validation. Keep in sync
 # with the Forgejo workflow when the matrix changes.
 name: CI

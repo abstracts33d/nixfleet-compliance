@@ -1,4 +1,4 @@
-//! nixfleet-compliance-sign — sign `evidence.json` with the host's SSH ed25519 key.
+//! nixfleet-compliance-sign -- sign `evidence.json` with the host's SSH ed25519 key.
 //!
 //! Called by the evidence collector after `probe-runner.sh` writes the JSON.
 //! Produces `<evidence>.sig`: a single-line base64-encoded 64-byte ed25519

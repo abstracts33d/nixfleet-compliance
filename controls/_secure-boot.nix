@@ -8,7 +8,7 @@
 # Typed control: type="both". The static gate inspects whether a
 # secure-boot enabling layer (lanzaboote, sd-stub with shim) is
 # wired in NixOS config. The runtime probe checks bootctl/EFI state
-# and refuses to lie when secure boot is off — historically the
+# and refuses to lie when secure boot is off -- historically the
 # probe shorted to `compliant=true` when `cfg.requireSecureBoot=false`,
 # turning the entire control into a no-op (issue #10). Operators
 # who can't run secure boot should disable the control entirely
@@ -40,7 +40,7 @@
 
   # Secure-boot-enabling layers, declared in NixOS. The presence of
   # any of these is the static signal that this host is *trying* to
-  # run secure boot — `bootctl status` confirms it actually does at
+  # run secure boot -- `bootctl status` confirms it actually does at
   # runtime.
   #
   # `boot.lanzaboote.enable` is the modern path on NixOS; the
@@ -83,7 +83,7 @@
       # The control reports compliance only when secure boot is
       # actually active AND the system has signed boot entries
       # backing it. Historically this short-circuited to true when
-      # `requireSecureBoot=false` — that turned the control into a
+      # `requireSecureBoot=false` -- that turned the control into a
       # no-op (issue #10), reporting hosts as compliant on a control
       # named "secureBoot" while secure boot was demonstrably off.
       # Operators who consciously waive secure boot should disable
@@ -141,7 +141,7 @@ in {
         # secure-boot enabling layer (lanzaboote today; broaden if
         # other paths land). The previous predicate
         # `systemdBootEnabled || grubEnabled` was true on every
-        # NixOS install regardless of secure boot state — see
+        # NixOS install regardless of secure boot state -- see
         # issue #10.
         passed = declaredSecureBootEnabler;
         evidence = {

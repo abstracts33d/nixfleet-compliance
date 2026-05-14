@@ -24,7 +24,7 @@
     name = "synthetic-always-fail";
     runtimeInputs = [];
     script = ''
-      jq -n '{compliant: false, reason: "synthetic always-fail control — operator-enabled for enforce-path verification"}'
+      jq -n '{compliant: false, reason: "synthetic always-fail control -- operator-enabled for enforce-path verification"}'
     '';
   };
 in {

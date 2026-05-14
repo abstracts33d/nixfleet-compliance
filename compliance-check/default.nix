@@ -5,7 +5,7 @@
 # every NixOS activation + on the configurable interval).
 #
 # Closes #12. The previous shape
-# re-executed probes inline as the calling user — produced false
+# re-executed probes inline as the calling user -- produced false
 # negatives whenever a probe needed root (sshd -T host key read,
 # auditctl -l, root-only filesystem reads). The collector solves
 # the privilege problem by running probes as root in a systemd
@@ -13,8 +13,8 @@
 #
 # Modes:
 # - default (any user): read JSON, format table, show timestamp/age.
-#   Stale (older than `cfg.staleAfterSecs`) → warning + non-zero exit.
-#   Missing → clear error pointing at the collector.
+#   Stale (older than `cfg.staleAfterSecs`) -> warning + non-zero exit.
+#   Missing -> clear error pointing at the collector.
 # - `--live` (root only): re-execute probes inline, ad-hoc. Useful
 #   for development or "force a fresh run" without `systemctl start`.
 #   Refuses with clear error when run as non-root.
@@ -35,7 +35,7 @@
   # an SSH ed25519 host pubkey are available.
   tools = pkgs.callPackage ../tools {};
 
-  # Inline-execution branch (`--live`). Mirrors the legacy script —
+  # Inline-execution branch (`--live`). Mirrors the legacy script --
   # runs each probe directly. Refuses with a clear error when
   # invoked as non-root, since probes need privileged operations to
   # produce accurate output. Never silently reports false negatives.
@@ -129,7 +129,7 @@
       echo "  Path: $EVIDENCE" >&2
       echo "  Mode: $(stat -c '%a %U:%G' "$EVIDENCE" 2>/dev/null || echo unknown)" >&2
       echo "" >&2
-      echo "Expected: 0644 root:root. The collector should set this — if" >&2
+      echo "Expected: 0644 root:root. The collector should set this -- if" >&2
       echo "it's wrong, restart the service:" >&2
       echo "" >&2
       echo "    sudo systemctl start compliance-evidence-collector" >&2
@@ -139,7 +139,7 @@
     # Staleness check.
     timestamp=$(jq -r '.timestamp // empty' < "$EVIDENCE" 2>/dev/null || echo "")
     if [ -z "$timestamp" ]; then
-      echo "compliance-check: evidence file has no timestamp — corrupt or pre-#12." >&2
+      echo "compliance-check: evidence file has no timestamp -- corrupt or pre-#12." >&2
       echo "Re-run the collector: sudo systemctl start compliance-evidence-collector" >&2
       exit 2
     fi
@@ -159,7 +159,7 @@
     echo "Host: $host"
     echo "Evidence collected: $timestamp ($(printf '%dh%02dm ago' $((age_secs / 3600)) $(((age_secs % 3600) / 60))))"
     if [ "$is_stale" = "true" ]; then
-      printf "\033[33mWARNING: evidence older than %ds — collector may have stalled. Re-run:\033[0m\n" "$STALE_AFTER_SECS"
+      printf "\033[33mWARNING: evidence older than %ds -- collector may have stalled. Re-run:\033[0m\n" "$STALE_AFTER_SECS"
       echo "    sudo systemctl start compliance-evidence-collector"
     fi
 
@@ -256,7 +256,7 @@
         ;;
       -h|--help)
         cat <<EOF
-    compliance-check — read NixFleet compliance evidence
+    compliance-check -- read NixFleet compliance evidence
 
     Usage:
       compliance-check          Read persisted evidence.json (any user)

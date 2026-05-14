@@ -22,10 +22,10 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  # Static predicate inputs — mirror what the runtime probe verifies.
+  # Static predicate inputs -- mirror what the runtime probe verifies.
   # The runtime probe gates on:
   #   1. flake_lock_days ≤ inputStalenessWarningDays (a fact about the
-  #      world — the deployed flake.lock's mtime; can't be checked
+  #      world -- the deployed flake.lock's mtime; can't be checked
   #      statically).
   #   2. If sbomGeneration: the SBOM file exists.
   #
@@ -169,9 +169,9 @@ in {
       check = probeScript;
       staticEvidence = {
         # Predicate: SBOM generation is wired when required (matches
-        # the runtime probe's `sbom_required → sbom_present` clause)
+        # the runtime probe's `sbom_required -> sbom_present` clause)
         # AND the staleness threshold is non-trivial. The previous
-        # `passed = cfg.enable` was tautological — see issue #11.
+        # `passed = cfg.enable` was tautological -- see issue #11.
         # flake.lock age is a runtime fact and stays in the runtime
         # probe.
         passed = sbomRequirementSatisfiedStatically && stalenessThresholdReasonable;

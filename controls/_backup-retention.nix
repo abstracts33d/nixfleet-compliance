@@ -3,7 +3,7 @@
 # Backup retention - Art. 21(c). No enforcement: backup wiring is the
 # consumer's job. Topology-aware: hosts that *receive* backups
 # (services.restic.server.enable, services.borgbackup.repos) are
-# attested as compliant by definition — clients attest data freshness
+# attested as compliant by definition -- clients attest data freshness
 # via their probes. Clients query their backup-shaped service unit's
 # last `Result=success` + `InactiveEnterTimestamp` instead of looking
 # for archive files in /var/lib/nixfleet-backup (which holds only the
@@ -84,8 +84,8 @@
     || resticBackupsConfigured
     || borgJobsConfigured;
 
-  # The probe inspects systemd unit state directly — `Result=success`
-  # plus `InactiveEnterTimestamp` for oneshots — instead of grovelling
+  # The probe inspects systemd unit state directly -- `Result=success`
+  # plus `InactiveEnterTimestamp` for oneshots -- instead of grovelling
   # for backup files in `/var/lib/nixfleet-backup`. The old approach
   # broke on every centralized topology: clients hold a restic cache
   # (no archives), servers hold archives under a different path. Unit
@@ -105,7 +105,7 @@
       }"
 
       if [ "$is_server" = "true" ]; then
-        # Backup destination — clients attest data freshness via their probes.
+        # Backup destination -- clients attest data freshness via their probes.
         jq -n \
           --argjson compliant true \
           --argjson retention_policy_days "$retention_policy_days" \
@@ -136,7 +136,7 @@
       inactive_ts=$(systemctl show "$service_unit" --property=InactiveEnterTimestamp --value 2>/dev/null)
 
       # Fall back to the timer's last-trigger when the service hasn't run
-      # since boot — `Result` is "success" by default for an inactive unit
+      # since boot -- `Result` is "success" by default for an inactive unit
       # and `InactiveEnterTimestamp` is empty until the unit has actually
       # finished a run. On a freshly-rebooted host this would otherwise
       # mis-report "result=success but InactiveEnterTimestamp unparseable".
@@ -234,7 +234,7 @@ in {
       };
       check = probeScript;
       staticEvidence = {
-        # Predicate: a backup mechanism is declared — as a destination
+        # Predicate: a backup mechanism is declared -- as a destination
         # (server) or as a client. Freshness is the runtime probe's
         # concern; the static gate just catches "operator forgot to
         # wire backups at all" (issue #11).

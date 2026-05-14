@@ -2,14 +2,14 @@
 #
 # Typed control factory. Discriminates on `type`:
 #
-#   "static"  — declared in NixOS config. Gated at CI time via
-#               `evaluate :: config → { passed, evidence }`.
+#   "static"  -- declared in NixOS config. Gated at CI time via
+#               `evaluate :: config -> { passed, evidence }`.
 #               No runtime probe.
 #
-#   "runtime" — observed on the host. `probeDescriptor` carries the
+#   "runtime" -- observed on the host. `probeDescriptor` carries the
 #               CONTRACTS §I.3 payload the agent executes.
 #
-#   "both"    — static evidence AT CI time + runtime probe on-host.
+#   "both"    -- static evidence AT CI time + runtime probe on-host.
 #               Both projections share the `schema` version.
 #
 # Composes with `mkControl.nix` via module imports. Reading

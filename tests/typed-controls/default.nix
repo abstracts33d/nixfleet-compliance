@@ -7,7 +7,7 @@
 # - Run positive fixtures under ./fixtures/ and negative fixtures under
 #   ./negative/.
 #
-# No VM, no build — pure evaluation. Bounded by what `nix flake check`
+# No VM, no build -- pure evaluation. Bounded by what `nix flake check`
 # can see.
 {
   lib,

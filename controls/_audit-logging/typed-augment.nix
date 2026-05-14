@@ -15,7 +15,7 @@
 # The previous `cfg.enable && enabledRuleCount > 0` counted the
 # module's internal rule attrset (always > 0 once enabled at strict
 # severity), making the gate vacuous on any framework-enabled fleet
-# — see issue #11.
+# -- see issue #11.
 #
 # Assigned framework: NIS2 (reference "both"-type control for nis2).
 {
@@ -31,10 +31,10 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  # Static predicate inputs — mirror what AL-02's runtime probe
+  # Static predicate inputs -- mirror what AL-02's runtime probe
   # checks (`systemctl is-active auditd` + `auditctl -l > 0`).
   # NixOS exposes the audit daemon at `security.auditd.enable`
-  # (NOT `services.auditd.*` — easy typo to make).
+  # (NOT `services.auditd.*` -- easy typo to make).
   auditdEnabled = config.security.auditd.enable or false;
   auditEnabled = config.security.audit.enable or false;
   rulesDeclared = config.security.audit.rules or [];

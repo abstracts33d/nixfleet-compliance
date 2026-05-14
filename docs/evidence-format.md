@@ -6,7 +6,7 @@ The evidence collector writes three files to `/var/lib/nixfleet-compliance/`:
 |------|------------|
 | `evidence.json` | JSON record: host, timestamp, per-control status, framework articles, per-rule checks |
 | `evidence.json.sig` | base64 ed25519 signature over the JCS-canonical bytes of `evidence.json` (RFC 8785) |
-| `evidence.host.pub` | OpenSSH-format ed25519 public key — the key the auditor verifies against |
+| `evidence.host.pub` | OpenSSH-format ed25519 public key -- the key the auditor verifies against |
 
 An auditor with `evidence.host.pub` can verify the chain offline using `nixfleet-compliance-verify` (ships with the module). No network access, no control plane, no trust in the operator.
 
@@ -36,14 +36,14 @@ An auditor with `evidence.host.pub` can verify the chain offline using `nixfleet
 
 Per-control entry:
 
-- `control` — slug identifying the control (matches the module name).
-- `status` — `compliant` | `non-compliant` | `error`.
-- `framework_articles` — regulatory anchors each framework preset maps the control to. The auditor's hook.
-- `checks` — per-rule breakdown of the control's predicates / probes.
+- `control` -- slug identifying the control (matches the module name).
+- `status` -- `compliant` | `non-compliant` | `error`.
+- `framework_articles` -- regulatory anchors each framework preset maps the control to. The auditor's hook.
+- `checks` -- per-rule breakdown of the control's predicates / probes.
 
 ## JCS canonicalisation
 
-The on-disk JSON is collector-formatted (pretty-printed, human-readable). The signature is not over the on-disk bytes directly — it is over the **JCS-canonical** form (RFC 8785: sorted keys, compact form, no trailing newline). The verifier re-canonicalises before checking.
+The on-disk JSON is collector-formatted (pretty-printed, human-readable). The signature is not over the on-disk bytes directly -- it is over the **JCS-canonical** form (RFC 8785: sorted keys, compact form, no trailing newline). The verifier re-canonicalises before checking.
 
 Canonicalisation matters because the signature attests to a specific byte sequence. Two semantically equivalent JSON documents (different key order, different whitespace) produce different signatures; the auditor verifying a signed file must reproduce the exact byte sequence the signer signed. JCS removes that ambiguity by defining a single canonical form.
 
@@ -56,7 +56,7 @@ The same JCS implementation (the [`serde_jcs`](https://crates.io/crates/serde_jc
 1. Reads `evidence.json`, parses as JSON.
 2. JCS-canonicalises the parsed value.
 3. Loads the OpenSSH ed25519 private key from `/etc/ssh/ssh_host_ed25519_key` (configurable via `compliance.evidence.sign.hostKeyPath`).
-4. Signs the canonical bytes with ed25519 → 64-byte signature.
+4. Signs the canonical bytes with ed25519 -> 64-byte signature.
 5. base64-encodes the signature, writes a single line to `evidence.json.sig`.
 
 The host SSH key is intentionally reused: every NixOS host already has one, the public half is already discoverable via `ssh-keyscan`, and the agent in `nixfleet` uses the same key for its over-the-wire compliance reports. One identity, two signatures (file + wire), one verification path.
@@ -85,11 +85,11 @@ OK  signature verifies
 
 Exit code 0 = signature verifies, 2 = verification failure, 1 = usage error.
 
-The auditor does not need to trust the control plane, the operator, or NixFleet itself. The signature binds the evidence to the SSH host key; the public half is published next to the evidence and is also independently obtainable from the host (`ssh-keyscan -t ed25519 <hostname>`). The v0.3 trajectory anchors the SSH host key to a TPM measurement chain (see [RFC-0004 in nixfleet](https://github.com/arcanesys/nixfleet/blob/main/docs/rfcs/0004-hardware-rooted-trust.md)) — at which point the chain becomes hardware-rooted, not just software-rooted.
+The auditor does not need to trust the control plane, the operator, or NixFleet itself. The signature binds the evidence to the SSH host key; the public half is published next to the evidence and is also independently obtainable from the host (`ssh-keyscan -t ed25519 <hostname>`). The v0.3 trajectory anchors the SSH host key to a TPM measurement chain (see [RFC-0004 in nixfleet](https://github.com/arcanesys/nixfleet/blob/main/docs/rfcs/0004-hardware-rooted-trust.md)) -- at which point the chain becomes hardware-rooted, not just software-rooted.
 
 ## Reproducing verification by hand
 
-The verifier is small — about 100 lines of Rust around the `ed25519-dalek`, `ssh-key`, and `serde_jcs` crates. Anyone uncomfortable trusting the binary can reproduce the recipe directly:
+The verifier is small -- about 100 lines of Rust around the `ed25519-dalek`, `ssh-key`, and `serde_jcs` crates. Anyone uncomfortable trusting the binary can reproduce the recipe directly:
 
 ```sh
 # 1. Read + parse evidence.json

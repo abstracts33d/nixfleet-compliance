@@ -23,7 +23,7 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  # Static predicate inputs — read the SAME NixOS sshd settings the
+  # Static predicate inputs -- read the SAME NixOS sshd settings the
   # runtime probe later verifies via `sshd -T`. The runtime check
   # ANDs `password_auth_disabled` and `root_login_restricted`; the
   # static predicate mirrors that exactly so the two evaluations
@@ -166,8 +166,8 @@ in {
       # exactly is what makes the static-strict gate meaningful:
       # a static PASS guarantees the runtime PASS for the same
       # config (and vice versa for FAIL). Operator overrides that
-      # break the contract — `services.openssh.settings.PasswordAuthentication
-      # = lib.mkForce true` for an unattended kiosk, say — surface
+      # break the contract -- `services.openssh.settings.PasswordAuthentication
+      # = lib.mkForce true` for an unattended kiosk, say -- surface
       # at fleet-eval time, not after deploy.
       staticEvidence = {
         passed = passwordAuthDisabledStatically && rootLoginRestrictedStatically;

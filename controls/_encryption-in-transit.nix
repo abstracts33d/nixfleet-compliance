@@ -11,10 +11,10 @@
 # checks `/etc/ssh/ssh_host_ed25519_key.pub` exists), AND the
 # operator's declared `minTlsVersion` is in the modern set (the
 # enum constraint already ensures this, but explicit is better
-# than implicit). Cert-expiry is left to runtime — it's a fact
+# than implicit). Cert-expiry is left to runtime -- it's a fact
 # about the world, not the config. The previous predicate
 # `builtins.elem cfg.minTlsVersion ["1.2" "1.3"]` was tautological
-# given the option's enum type — see issue #11.
+# given the option's enum type -- see issue #11.
 {
   config,
   lib,
@@ -29,7 +29,7 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  # Static predicate inputs — mirror the runtime probe's
+  # Static predicate inputs -- mirror the runtime probe's
   # `ssh_host_key_exists` check. NixOS will generate any host key
   # declared in `services.openssh.hostKeys`; ed25519 is the modern
   # default. The probe greps for the .pub at runtime; statically we
@@ -145,7 +145,7 @@ in {
         # the declared minTlsVersion is in the modern set. The
         # previous predicate `builtins.elem cfg.minTlsVersion
         # ["1.2" "1.3"]` was tautological given the option type
-        # enum — see issue #11.
+        # enum -- see issue #11.
         passed =
           sshEd25519HostKeyDeclared
           && (cfg.minTlsVersion == "1.2" || cfg.minTlsVersion == "1.3");

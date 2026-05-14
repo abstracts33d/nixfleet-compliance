@@ -4,7 +4,7 @@
 //! `evidence.json`, signed with the host's existing SSH ed25519 key
 //! (`/etc/ssh/ssh_host_ed25519_key` by default). An auditor in possession
 //! of the host's SSH public key can verify the chain offline with the
-//! `nixfleet-compliance-verify` binary or — equivalently — by replicating
+//! `nixfleet-compliance-verify` binary or -- equivalently -- by replicating
 //! the JCS canonicalisation and running `ed25519` verification themselves.
 //!
 //! When `nixfleet-compliance` is paired with the `nixfleet` agent, the

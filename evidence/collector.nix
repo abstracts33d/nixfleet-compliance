@@ -91,7 +91,7 @@ in {
         # RestrictNamespaces - some probes may need mount namespace visibility
         # ProtectHome - access-control probe reads /home/*/.ssh/authorized_keys
         # The signing helper also reads /etc/ssh/ssh_host_ed25519_key
-        # which is mode 0600 root:root — accessible because the collector
+        # which is mode 0600 root:root -- accessible because the collector
         # runs as root.
       };
     };

@@ -13,8 +13,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [Semantic V
 ### Added
 
 - Typed controls: every control now declares `type = "static" | "runtime" | "both"` and a `schema = "<framework>/v<N>"` string.
-- `lib/mkTypedControl.nix` — typed control factory composing via `imports` with `lib/mkControl.nix`. Provides `expect` / `timeoutSecs` as factory parameters, threaded into the `probeDescriptor`.
-- `lib/probeDescriptor.nix`, `lib/evaluateStatic.nix` — helpers for building CONTRACTS §I.3 descriptors and static evidence projections.
+- `lib/mkTypedControl.nix` -- typed control factory composing via `imports` with `lib/mkControl.nix`. Provides `expect` / `timeoutSecs` as factory parameters, threaded into the `probeDescriptor`.
+- `lib/probeDescriptor.nix`, `lib/evaluateStatic.nix` -- helpers for building CONTRACTS §I.3 descriptors and static evidence projections.
 - Baseline `agent-egress-exemption` control (type=both): required whenever a firewall-lock control is enabled on the same host; declares the single endpoint the agent is allowed to reach.
 - Per-framework `schemaVersions` attribute (e.g. `"anssi-bp028/v1"`, `"nis2/v1"`, `"dora/v1"`, `"iso27001/v1"`).
 - New governance option `primaryFramework` with default `"anssi-bp028"`.

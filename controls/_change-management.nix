@@ -7,7 +7,7 @@
 # was built from a tracked source revision and has enough rollback
 # headroom to satisfy a "could reproduce a previous state on demand"
 # read of change-management. The previous predicate `passed = cfg.enable`
-# was tautological — see issue #11.
+# was tautological -- see issue #11.
 {
   config,
   lib,
@@ -25,12 +25,12 @@
   # built from a known git rev (NixOS exposes the revision via the
   # flake's `self.shortRev`/`self.rev`). nixfleet's CI sets it on
   # every build. Empty/null means we can't prove the running config
-  # came from a reviewed commit — which IS the property
+  # came from a reviewed commit -- which IS the property
   # change-management is meant to assert.
   configurationRevision = config.system.configurationRevision or null;
   hasTrackedRevision = configurationRevision != null && configurationRevision != "";
 
-  # Bootloader configurationLimit gives rollback headroom — the
+  # Bootloader configurationLimit gives rollback headroom -- the
   # operator can revert to N previous generations without rebuilding.
   # Used by change-management *and* disasterRecovery (#7); keeping a
   # local read here so the predicate is self-contained.
@@ -86,7 +86,7 @@ in {
         # Predicate: host was built from a tracked source revision
         # AND has rollback headroom (≥1 previous generation
         # retained). The previous tautology `cfg.enable` made the
-        # control a no-op — see issue #11.
+        # control a no-op -- see issue #11.
         passed = hasTrackedRevision && configurationLimit >= 1;
         evidence = {
           hasTrackedRevision = hasTrackedRevision;

@@ -36,16 +36,16 @@
 
   enabledRuleCount = builtins.length (lib.filter (n: cfg.rules.${n}.enable or false) (builtins.attrNames cfg.rules));
 
-  # Static predicate inputs — inspect that the *essential* hardening
+  # Static predicate inputs -- inspect that the *essential* hardening
   # sysctls are set to safe values. Mirrors what the per-rule runtime
   # probes verify via `sysctl -a | grep`. Rules already self-configure
   # these via their `config = {...}` blocks; predicate just confirms
   # the merged NixOS config produces the expected values.
   #
-  # "Essential" here is a curated subset — the sysctls every NIS2/
+  # "Essential" here is a curated subset -- the sysctls every NIS2/
   # ANSSI-aligned NixOS host should have set, regardless of host type.
-  # Optional ones (kernel.modules_disabled — breaks dynamic loading;
-  # kernel.yama.ptrace_scope = 2 — breaks gdb attach) are reported in
+  # Optional ones (kernel.modules_disabled -- breaks dynamic loading;
+  # kernel.yama.ptrace_scope = 2 -- breaks gdb attach) are reported in
   # evidence but not gating, since they're often relaxed for
   # workstations or development servers.
   # Helper: treat null as 0 for the >= comparison. Nix's `or`
@@ -74,7 +74,7 @@ in {
         # The previous `cfg.enable && enabledRuleCount > 0` counted
         # the module's internal rule attrset (always > 0 once
         # enabled at strict severity), making the gate vacuous on
-        # any framework-enabled fleet — see issue #11.
+        # any framework-enabled fleet -- see issue #11.
         passed =
           hardenedKptrRestrict
           && hardenedDmesgRestrict

@@ -5,7 +5,7 @@
 # are JCS-ready: UTF-8, sorted keys, no trailing newline, no whitespace.
 #
 # Stream C's `nixfleet-canonicalize` normalises number/unicode edge
-# cases — producer-side, we promise to never emit floats and to keep
+# cases -- producer-side, we promise to never emit floats and to keep
 # attr-set iteration deterministic. Usage is unchanged for existing
 # controls:
 #

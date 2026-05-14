@@ -1,4 +1,4 @@
-# Runbook — verifying enforce-mode rollback with the synthetic control
+# Runbook -- verifying enforce-mode rollback with the synthetic control
 
 `controls/_synthetic.nix` ships an opt-in always-fail control. Its sole
 purpose is to drive the agent's enforce-mode runtime gate end-to-end on
@@ -24,7 +24,7 @@ A throwaway host. Options, easiest first:
    the fleet repo. Most isolated; the rollback only affects the VM.
 2. **An idle real host** (e.g. a re-purposed laptop on the Tailnet). Same
    guarantees as a VM but takes longer to set up.
-3. **A live workstation** — only if you are willing to ssh in and
+3. **A live workstation** -- only if you are willing to ssh in and
    manually `nixos-rebuild switch --flake .#hostname --target-host
    root@host` if anything goes sideways.
 
@@ -56,8 +56,8 @@ host running the CP would brick fleet-wide convergence.
    Expected sequence after activation:
 
    ```
-   compliance gate: failures — posting per-control events count=N
-   compliance gate: failures — refusing confirm + rolling back (enforce mode)
+   compliance gate: failures -- posting per-control events count=N
+   compliance gate: failures -- refusing confirm + rolling back (enforce mode)
    ```
 
 5. **Verify the rollback landed:**
@@ -74,7 +74,7 @@ host running the CP would brick fleet-wide convergence.
 
 ## Failure modes worth distinguishing
 
-- **Rollback didn't fire** — agent log shows `posting per-control events`
+- **Rollback didn't fire** -- agent log shows `posting per-control events`
   but no `refusing confirm`. Means the channel mode resolved to permissive
   (check `target.compliance_mode` in the dispatch envelope) or the gate
   code path you intended to test isn't running. Verify with:
@@ -82,10 +82,10 @@ host running the CP would brick fleet-wide convergence.
       systemctl show nixfleet-agent.service --property=ExecStart
       systemctl status nixfleet-agent.service
 
-- **Rollback fired but host is wedged** — `nix-env --rollback` failed.
+- **Rollback fired but host is wedged** -- `nix-env --rollback` failed.
   Manual recovery: ssh as root, run `nix-env --profile
   /nix/var/nix/profiles/system --rollback` and reboot.
 
-- **CP sees no `RollbackTriggered` event** — agent's `evidence_signer`
+- **CP sees no `RollbackTriggered` event** -- agent's `evidence_signer`
   isn't loaded (no SSH host key) OR the CP rejected the event signature.
   Check agent journal for `evidence_signer.sign failed`.

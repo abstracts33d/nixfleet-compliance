@@ -106,7 +106,7 @@ in {
       };
       check = probeScript;
       # Predicate: evidence collector is enabled (asset inventory
-      # is its primary output). Was `null` (no static gate) — issue
+      # is its primary output). Was `null` (no static gate) -- issue
       # #11 audit. The runtime probe inspects host facts (kernel,
       # nix store path counts, etc.) which can't be evaluated
       # statically; the collector wiring is the static prerequisite.

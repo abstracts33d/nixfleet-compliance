@@ -1,4 +1,4 @@
-//! nixfleet-compliance-verify — offline-verify `evidence.json` against its
+//! nixfleet-compliance-verify -- offline-verify `evidence.json` against its
 //! signature using the host's SSH ed25519 *public* key.
 //!
 //! The auditor's tool. Exit code:

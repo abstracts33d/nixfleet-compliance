@@ -1,7 +1,7 @@
 # controls/_authentication.nix
 #
 # Authentication - Art. 21(j).
-# Module wires nothing on its own — MFA/auth config is fleet-specific
+# Module wires nothing on its own -- MFA/auth config is fleet-specific
 # (PAM stacks, Keycloak, U2F hardware, etc.). Verifies: MFA policy,
 # PAM modules, SSH certificate auth, system account inventory.
 #
@@ -15,7 +15,7 @@
 #     the static predicate looks for the equivalent declaratively-
 #     wired NixOS options on `security.pam.services.sshd`.
 #
-# Best-effort declarative detection — operators using non-NixOS-native
+# Best-effort declarative detection -- operators using non-NixOS-native
 # MFA stacks (e.g. raw `text =` PAM bodies sourcing custom modules)
 # may need to set `mfaRequired = false` and rely on the runtime probe
 # alone. The runtime probe is the source of truth; the static predicate
@@ -35,7 +35,7 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  # Static predicate inputs — mirror the runtime probe's MFA check.
+  # Static predicate inputs -- mirror the runtime probe's MFA check.
   # The runtime probe greps `pam_(u2f|google|duo|oath)` from
   # `/etc/pam.d/sshd`; declaratively, NixOS exposes these as typed
   # options on `security.pam.services.sshd` (googleAuthenticator,
@@ -159,7 +159,7 @@ in {
       # condition (lines 60-69 of the probe script). When mfaRequired
       # is false the predicate passes unconditionally (matching the
       # runtime short-circuit). When true, declarativeMfaPresent must
-      # be true — i.e. some known MFA-enabling NixOS option is wired
+      # be true -- i.e. some known MFA-enabling NixOS option is wired
       # on `security.pam.services.sshd`. Static FAIL surfaces operator
       # overrides like `mfaRequired = lib.mkForce true` without any
       # MFA stack at fleet-eval time, before deploy.

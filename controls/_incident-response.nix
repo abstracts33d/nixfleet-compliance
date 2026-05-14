@@ -6,7 +6,7 @@
 # Typed control: type="static". Predicate inspects whether the host has
 # rollback infrastructure (bootloader retains previous generations) and
 # the operator's declared alert retention is non-trivial. The previous
-# predicate `passed = cfg.enable` was tautological — see issue #11.
+# predicate `passed = cfg.enable` was tautological -- see issue #11.
 {
   config,
   lib,
@@ -20,11 +20,11 @@
     config.compliance.schemaVersions.${framework}
     or (throw "compliance.schemaVersions.${framework} is not set");
 
-  # Rollback headroom — bootloader retains ≥1 previous generation so
+  # Rollback headroom -- bootloader retains ≥1 previous generation so
   # an operator can revert if a deploy goes bad. This is the
   # incident-response-flavoured read of "we kept a known-good state
   # for recovery". Mirrors the analogous check in change-management
-  # (#11) — the two controls are different framing on the same
+  # (#11) -- the two controls are different framing on the same
   # underlying property.
   # Same null-coercion as _disaster-recovery.nix (#14): NixOS option
   # default is null; `or 0` doesn't fire on null, so `null >= 1` throws.
@@ -78,7 +78,7 @@ in {
       staticEvidence = {
         # Predicate: rollback infrastructure present AND non-trivial
         # alert retention declared. The previous tautology `cfg.enable`
-        # made the control a no-op — see issue #11.
+        # made the control a no-op -- see issue #11.
         passed = hasRollbackInfrastructure && cfg.alertRetentionDays > 0;
         evidence = {
           hasRollbackInfrastructure = hasRollbackInfrastructure;

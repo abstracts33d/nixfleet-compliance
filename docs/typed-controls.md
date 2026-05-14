@@ -1,7 +1,7 @@
 # Migration: typed controls
 
 Controls now carry a `type` discriminator and a schema-versioned probe
-descriptor. This is a breaking change for out-of-tree controls — the
+descriptor. This is a breaking change for out-of-tree controls -- the
 old shape (`{ control, articles, check }`) is extended with new
 required fields for controls that want to participate in the typed
 evidence pipeline.
@@ -37,9 +37,9 @@ New shape (this release):
 ## How to migrate
 
 1. **Decide the type.**
-   - `runtime` — evidence is observed on the host at runtime.
-   - `static` — evidence is derivable from `config` at CI time.
-   - `both` — static gate at CI + runtime probe on-host.
+   - `runtime` -- evidence is observed on the host at runtime.
+   - `static` -- evidence is derivable from `config` at CI time.
+   - `both` -- static gate at CI + runtime probe on-host.
 
 2. **Declare schema versions.** Set `compliance.schemaVersions.<framework> = "<framework>/v1"` for each framework your control claims articles in. This is the string the agent uses to route probe handlers.
 
@@ -79,7 +79,7 @@ Per-control defaults:
 | `incidentResponse` | `nis2` |
 | `supplyChain` | `nis2` |
 
-**Single-framework fleet.** Enabling e.g. only `compliance.frameworks.anssi.enable = true` pulls the ANSSI framework module, which imports every control. Controls defaulting to a framework other than ANSSI (e.g. `auditLogging` → `nis2`) will still try to resolve `compliance.schemaVersions.nis2`. You MUST therefore set every `schemaVersions` key that any imported control references — not just the one for your primary framework.
+**Single-framework fleet.** Enabling e.g. only `compliance.frameworks.anssi.enable = true` pulls the ANSSI framework module, which imports every control. Controls defaulting to a framework other than ANSSI (e.g. `auditLogging` -> `nis2`) will still try to resolve `compliance.schemaVersions.nis2`. You MUST therefore set every `schemaVersions` key that any imported control references -- not just the one for your primary framework.
 
 **Multi-framework fleet.** Set every relevant key explicitly:
 
@@ -90,9 +90,9 @@ Per-control defaults:
       "iso27001" = "iso27001/v1";
     };
 
-**Override per-fleet.** A fleet that wants to coerce all controls to a single schema can set `gov.primaryFramework = "anssi-bp028"` — controls will then pick up ANSSI's schema regardless of their default. The per-control `articles` mapping still records which frameworks each control traces to.
+**Override per-fleet.** A fleet that wants to coerce all controls to a single schema can set `gov.primaryFramework = "anssi-bp028"` -- controls will then pick up ANSSI's schema regardless of their default. The per-control `articles` mapping still records which frameworks each control traces to.
 
-**Failure mode.** If a control's default framework is not in `schemaVersions`, evaluation throws with `compliance.schemaVersions.<framework> is not set`. The error is intentional — a silent fallback would pin typed probe outputs to the wrong schema and break agent-side handler routing.
+**Failure mode.** If a control's default framework is not in `schemaVersions`, evaluation throws with `compliance.schemaVersions.<framework> is not set`. The error is intentional -- a silent fallback would pin typed probe outputs to the wrong schema and break agent-side handler routing.
 
 ## Breaking changes in this release
 

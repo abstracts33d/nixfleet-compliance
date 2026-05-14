@@ -17,7 +17,7 @@
       nis2 = ["21(a)"];
     };
     config = {lib, ...}: {
-      # `iommu=force` alone is insufficient — the kernel needs the
+      # `iommu=force` alone is insufficient -- the kernel needs the
       # per-arch toggle to actually register IOMMU domains in
       # /sys/class/iommu/. Caught on lab (Intel M70q, VT-d
       # supported, DMAR detected by ACPI, `iommu=force` set, but

@@ -127,7 +127,7 @@ in {
       };
       check = probeScript;
       # Predicate: bootloader retains ≥ minGenerations previous
-      # generations for recovery. Was `null` (no static gate) — issue
+      # generations for recovery. Was `null` (no static gate) -- issue
       # #11 audit. Runtime probe verifies actual on-disk generation
       # presence; static check verifies the *config* allows it.
       staticEvidence = let

@@ -5,7 +5,7 @@
 # can accidentally block the agent from reaching the control plane,
 # stranding the host.
 #
-# type = "both" — static evidence is the declared endpoint; runtime
+# type = "both" -- static evidence is the declared endpoint; runtime
 # evidence is reachability at the declared host:port.
 {
   config,
