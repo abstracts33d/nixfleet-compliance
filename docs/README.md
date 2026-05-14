@@ -15,7 +15,7 @@ The doc tree splits by audience and lifecycle.
 | File | Topic |
 |------|-------|
 | [evidence-format.md](evidence-format.md) | Signed evidence JSON shape, JCS discipline, offline verification recipe |
-| [cli.md](cli.md) | `compliance-check` subcommands, environment variables, common workflows |
+| [cli.md](cli.md) | `compliance-check` + `nixfleet-compliance-verify` subcommands, environment, workflows |
 
 ## Frameworks
 

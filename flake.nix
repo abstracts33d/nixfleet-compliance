@@ -27,8 +27,10 @@
       }: {
         formatter = pkgs.alejandra;
 
+        packages.nixfleet-compliance-tools = pkgs.callPackage ./tools {};
+
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [alejandra jq];
+          packages = with pkgs; [alejandra jq cargo rustc rustfmt clippy];
         };
       };
     };

@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
 # evidence/probe-runner.sh
 #
-# Runs all registered probes, aggregates results into evidence.json.
-# Called by the systemd timer via collector.nix.
+# Runs all registered probes, aggregates results into evidence.json,
+# then optionally signs the canonical bytes with the host SSH ed25519 key
+# and publishes the host public key alongside.
 #
 # Arguments:
 #   $1 - output directory (default: /var/lib/nixfleet-compliance)
 #   $2 - probe directory (contains executable probe scripts)
+#   $3 - sign binary path (empty string = signing disabled)
+#   $4 - host SSH ed25519 private key path (used when $3 non-empty)
+#   $5 - "1" to publish host pubkey to <outdir>/evidence.host.pub, else "0"
 set -euo pipefail
 
 output_dir="${1:-/var/lib/nixfleet-compliance}"
 probe_dir="${2}"
+sign_bin="${3:-}"
+host_key="${4:-}"
+publish_pubkey="${5:-0}"
+
 hostname=$(hostname)
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -93,5 +101,40 @@ jq -n \
 # and downstream consumers (future runtime gate in nixfleet) rely
 # on this - see #12.
 chmod 0644 "${output_dir}/evidence.json"
+
+# Optional: sign the JCS-canonical bytes of evidence.json with the host's
+# SSH ed25519 key. Auditor verifies offline with `nixfleet-compliance-verify`.
+# Best-effort: signing failures (missing key, wrong algorithm, etc.) log
+# a warning but do not fail the collection -- the unsigned JSON is still
+# useful operationally even if the auditor chain is unavailable.
+# Stderr from the sign helper flows directly to the systemd journal so a
+# failure is debuggable via `journalctl -u compliance-evidence-collector`.
+if [ -n "$sign_bin" ] && [ -n "$host_key" ]; then
+  if [ -r "$host_key" ]; then
+    if "$sign_bin" \
+         --evidence "${output_dir}/evidence.json" \
+         --host-key "$host_key" \
+         --out "${output_dir}/evidence.json.sig"; then
+      chmod 0644 "${output_dir}/evidence.json.sig"
+    else
+      echo "WARNING: nixfleet-compliance-sign exited non-zero; evidence.json.sig removed." >&2
+      rm -f "${output_dir}/evidence.json.sig"
+    fi
+  else
+    echo "WARNING: host signing key $host_key not readable; evidence not signed." >&2
+    ls -la "$host_key" >&2 || true
+  fi
+fi
+
+# Optional: copy the host public key into the output dir so an auditor
+# receives a self-contained verification bundle (evidence.json +
+# evidence.json.sig + evidence.host.pub).
+if [ "$publish_pubkey" = "1" ] && [ -n "$host_key" ]; then
+  if [ -r "${host_key}.pub" ]; then
+    install -m 0644 "${host_key}.pub" "${output_dir}/evidence.host.pub"
+  else
+    echo "WARNING: ${host_key}.pub not readable; evidence.host.pub not published." >&2
+  fi
+fi
 
 echo "Evidence collected: ${compliant}/${total} controls compliant"

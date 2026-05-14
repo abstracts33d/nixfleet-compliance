@@ -30,6 +30,11 @@
   evidencePath = "${collectorOutputDir}/evidence.json";
   probeNames = lib.attrNames probes;
 
+  # Compiled from tools/ (Rust). Used by the reader branch below to
+  # offline-verify the evidence chain when both `evidence.json.sig` and
+  # an SSH ed25519 host pubkey are available.
+  tools = pkgs.callPackage ../tools {};
+
   # Inline-execution branch (`--live`). Mirrors the legacy script -
   # runs each probe directly. Refuses with a clear error when
   # invoked as non-root, since probes need privileged operations to
@@ -157,6 +162,26 @@
       printf "\033[33mWARNING: evidence older than %ds - collector may have stalled. Re-run:\033[0m\n" "$STALE_AFTER_SECS"
       echo "    sudo systemctl start compliance-evidence-collector"
     fi
+
+    # Offline-verify the evidence chain when sig + pubkey are available.
+    # Best-effort: surfaces the result, doesn't gate the read on it. A
+    # signature mismatch is louder than a missing signature (the former
+    # is a trust-chain failure; the latter is a config choice).
+    SIG="${collectorOutputDir}/evidence.json.sig"
+    PUBKEY="${collectorOutputDir}/evidence.host.pub"
+    if [ -r "$SIG" ] && [ -r "$PUBKEY" ]; then
+      if verify_out=$(${tools}/bin/nixfleet-compliance-verify \
+                       --evidence "$EVIDENCE" \
+                       --signature "$SIG" \
+                       --pubkey "$PUBKEY" 2>&1); then
+        printf "\033[32mSignature: OK\033[0m (verified against %s)\n" "$PUBKEY"
+      else
+        printf "\033[31mSignature: FAIL\033[0m -- %s\n" "$verify_out"
+        printf "\033[31m            Trust chain compromised; do NOT hand this evidence to an auditor as-is.\033[0m\n"
+      fi
+    else
+      echo "Signature: not verified (evidence.json.sig or evidence.host.pub absent)"
+    fi
     echo ""
 
     # Render the same per-control table compliance-check always has,
@@ -277,6 +302,11 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [checkScript];
+    # Ship both the wrapper script and the standalone verify binary.
+    # The verify binary is what an auditor on a non-NixOS workstation
+    # would run after copying evidence.json + evidence.json.sig +
+    # evidence.host.pub off the host -- so it's worth having on the
+    # operator's PATH for the same reflex.
+    environment.systemPackages = [checkScript tools];
   };
 }

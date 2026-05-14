@@ -17,7 +17,7 @@ You are an RSSI or DSI under **NIS2** (Loi Résilience, transposition deadline 2
 A scanner tells you what's broken after the fact. This module:
 
 1. **Refuses to build** non-compliant closures on `enforce`-mode channels. An SSH-password-auth host can't even produce a signable artifact for an ANSSI BP-028 channel.
-2. **Signs every probe output** with the host key - JCS-canonicalized, schema-versioned. An auditor handed a hostname and a date can verify the chain without trusting the control plane.
+2. **Signs `evidence.json` on every collection** with the host's SSH ed25519 key - JCS-canonicalized (RFC 8785), published alongside `evidence.host.pub`. An auditor with the public key can verify the chain offline using `nixfleet-compliance-verify` - no control plane, no operator trust, no scanner-vendor trust required.
 3. **Blocks rollout waves** on runtime failure when integrated with NixFleet. A probe failure on wave 0 prevents wave 1 from promoting and triggers per-host rollback.
 
 The module produces compliance proof, but the proof is a side-effect of the gate. The gate is the point.
@@ -28,7 +28,8 @@ The module produces compliance proof, but the proof is a side-effect of the gate
 - **16 production controls** across access, encryption, audit, supply chain, baseline hardening, backup, incident response, disaster recovery, key management, network segmentation, secure boot, asset inventory, change management, vulnerability management, authentication, and agent egress. Plus one synthetic always-fail control (opt-in) for testing the rollback path end-to-end.
 - **Article-level coverage** of **CRA** (Cyber Resilience Act) and **SecNumCloud** on individual controls where those frameworks apply (e.g. secure boot, supply chain, key management, network segmentation).
 - **Governance engine** - per-channel mode (`disabled` / `permissive` / `enforce`), fleet-wide hardening level, host-type scoping, per-rule exceptions with mandatory rationale.
-- **`compliance-check` CLI** - read the latest signed evidence as any user, or re-run probes live (root, `--live`).
+- **`compliance-check` CLI** - read the latest signed evidence (with signature verification when sig + pubkey are present), or re-run probes live (root, `--live`).
+- **`nixfleet-compliance-verify` CLI** - auditor-facing offline verifier; takes `evidence.json` + `evidence.json.sig` + `evidence.host.pub`, reproduces JCS canonicalisation, runs ed25519 verification, prints host + collection time + per-status counts. Exit 0 verifies, 2 fails.
 
 ## See it work
 
