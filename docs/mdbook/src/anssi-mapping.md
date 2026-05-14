@@ -1,0 +1,1 @@
+{{#include ../../anssi-mapping.md}}

@@ -1,0 +1,29 @@
+[book]
+title = "NixFleet Compliance"
+description = "Concepts, reference, and framework mappings for the NixFleet Compliance gate"
+authors = ["nixfleet-compliance contributors"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+no-section-label = false
+fold = { enable = true, level = 2 }
+git-repository-url = "https://github.com/arcanesys/nixfleet-compliance"
+edit-url-template = "https://github.com/arcanesys/nixfleet-compliance/edit/main/docs/mdbook/{path}"
+additional-css = []
+
+[output.html.search]
+enable = true
+limit-results = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3

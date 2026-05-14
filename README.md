@@ -44,10 +44,11 @@ Contact: <contact@arcanesys.fr>
 
 ## Documentation
 
+- Concepts: [Scanner vs. gate](docs/gate-mechanics.md) · [Governance](docs/governance.md) · [Typed controls](docs/typed-controls.md)
+- Reference: [Evidence format](docs/evidence-format.md) · [`compliance-check` CLI](docs/cli.md)
 - Framework mappings: [NIS2](docs/nis2-mapping.md) · [DORA](docs/dora-mapping.md) · [ISO 27001](docs/iso27001-mapping.md) · [ANSSI BP-028](docs/anssi-mapping.md)
-- Typed controls explainer: [`docs/typed-controls.md`](docs/typed-controls.md)
-- Synthetic control runbook: [`docs/synthetic-control-runbook.md`](docs/synthetic-control-runbook.md)
-- Full docs: [arcanesys.github.io/nixfleet](https://arcanesys.github.io/nixfleet)
+- Runbooks: [Synthetic control](docs/synthetic-control-runbook.md)
+- Doc index + mdbook: [docs/README.md](docs/README.md) · composed view in [docs/mdbook/](docs/mdbook/)
 
 ## Contributing
 
