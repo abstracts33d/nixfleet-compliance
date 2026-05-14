@@ -1,0 +1,36 @@
+[package]
+name = "nixfleet-compliance-tools"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+description = "Sign + verify on-disk compliance evidence using the host's SSH ed25519 key"
+repository = "https://github.com/arcanesys/nixfleet-compliance"
+
+[[bin]]
+name = "nixfleet-compliance-sign"
+path = "src/bin/sign.rs"
+
+[[bin]]
+name = "nixfleet-compliance-verify"
+path = "src/bin/verify.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+ed25519-dalek = "2"
+serde_jcs = "0.2"
+serde_json = "1"
+ssh-key = { version = "0.6", features = ["ed25519"] }
+
+[dev-dependencies]
+tempfile = "3"
+rand = "0.8"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

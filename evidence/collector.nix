@@ -35,6 +35,20 @@
     runtimeInputs = with pkgs; [coreutils jq gnugrep hostname gawk];
     text = builtins.readFile ./probe-runner.sh;
   };
+
+  # Compiled from tools/ (Rust): produces nixfleet-compliance-sign +
+  # nixfleet-compliance-verify. Signs the JCS-canonical bytes of
+  # evidence.json with the host SSH ed25519 key after every collection.
+  tools = pkgs.callPackage ../tools {};
+
+  signBinArg =
+    if cfg.sign.enable
+    then "${tools}/bin/nixfleet-compliance-sign"
+    else "";
+  publishPubkeyArg =
+    if cfg.sign.publishPubkey
+    then "1"
+    else "0";
 in {
   config = lib.mkIf cfg.collector.enable {
     systemd.services.compliance-evidence-collector = {
@@ -46,9 +60,15 @@ in {
       # coverage. `wantedBy = multi-user.target` also makes the
       # service start on every boot.
       wantedBy = ["multi-user.target"];
+      # When signing is enabled, the collector needs the SSH host key
+      # to exist. sshd.service generates it via ssh-keygen -A at startup;
+      # ordering ourselves after sshd means the keys are on disk before
+      # we try to sign. Harmless when sshd is disabled (After-deps that
+      # don't exist or aren't started are silently ignored by systemd).
+      after = lib.optionals cfg.sign.enable ["sshd.service"];
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${runner}/bin/compliance-probe-runner ${cfg.collector.outputDir} ${probeDir}";
+        ExecStart = "${runner}/bin/compliance-probe-runner ${cfg.collector.outputDir} ${probeDir} ${signBinArg} ${cfg.sign.hostKeyPath} ${publishPubkeyArg}";
         StateDirectory = "nixfleet-compliance";
         # 0755 so any user can read evidence.json. The probe runner
         # writes the file mode 0644 (see probe-runner.sh). Operator
@@ -70,6 +90,9 @@ in {
         # ProtectKernelModules - nft needs netlink access
         # RestrictNamespaces - some probes may need mount namespace visibility
         # ProtectHome - access-control probe reads /home/*/.ssh/authorized_keys
+        # The signing helper also reads /etc/ssh/ssh_host_ed25519_key
+        # which is mode 0600 root:root — accessible because the collector
+        # runs as root.
       };
     };
 

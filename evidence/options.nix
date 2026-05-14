@@ -94,5 +94,51 @@ in {
         description = "Directory where evidence.json is written";
       };
     };
+
+    # On-disk signing of evidence.json. Signs the JCS-canonical bytes
+    # of the evidence file using the host's SSH ed25519 key. An auditor
+    # with the host's SSH public key can verify the chain offline using
+    # `nixfleet-compliance-verify`.
+    #
+    # Independent of the wire-summary signing the nixfleet agent performs:
+    # both reuse the same SSH host key and coexist (different payloads).
+    sign = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Sign evidence.json with the host's SSH ed25519 key after every
+          collection. Produces `evidence.json.sig` (base64-encoded
+          ed25519 signature over the JCS-canonical bytes) next to
+          `evidence.json` in the collector output directory.
+
+          Default true so the auditor chain works out of the box. Set
+          false on hosts that don't have an ed25519 SSH host key or
+          where signing is handled elsewhere.
+        '';
+      };
+
+      hostKeyPath = lib.mkOption {
+        type = lib.types.str;
+        default = "/etc/ssh/ssh_host_ed25519_key";
+        description = ''
+          Path to the SSH ed25519 private key used to sign evidence.
+          Must be readable by root (the collector runs as root). The
+          corresponding public key (with `.pub` suffix) is what the
+          auditor uses to verify.
+        '';
+      };
+
+      publishPubkey = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Copy `<hostKeyPath>.pub` into the collector output directory
+          as `evidence.host.pub`. Default true so the auditor receives
+          a self-contained directory: evidence.json + evidence.json.sig
+          + evidence.host.pub is all they need to verify offline.
+        '';
+      };
+    };
   };
 }

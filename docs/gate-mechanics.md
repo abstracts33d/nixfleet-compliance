@@ -12,7 +12,7 @@ Every control declares its `type`:
 - **`runtime`** — JSON-emitting probe wrapped in a systemd unit. Evaluated post-activation. Examples: `sshd -T` reports password auth disabled, `auditctl` shows execve tracking active, a service is responding on its declared port.
 - **`both`** — declares both projections. Static catches misconfigurations before deploy; runtime catches drift, manual changes, or kernel-level state the config can't fully prove.
 
-The discriminator lives in [`lib/mkTypedControl.nix`](https://github.com/arcanesys/nixfleet-compliance/blob/main/lib/mkTypedControl.nix). Static predicates are pure functions returning `{ passed, evidence }`; runtime probes are JCS-disciplined `mkProbe` invocations that produce signable JSON. See [typed controls migration notes](typed-controls.md) for the schema-versioning and breaking-changes lineage.
+The discriminator lives in [`lib/mkTypedControl.nix`](https://github.com/arcanesys/nixfleet-compliance/blob/main/lib/mkTypedControl.nix). Static predicates are pure functions returning `{ passed, evidence }`; runtime probes are JCS-disciplined `mkProbe` invocations producing JSON the collector signs with the host SSH ed25519 key (see [evidence-format](evidence-format.md)). See [typed controls migration notes](typed-controls.md) for the schema-versioning and breaking-changes lineage.
 
 ## Static gate
 
