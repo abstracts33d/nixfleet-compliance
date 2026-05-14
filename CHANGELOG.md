@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [Semantic V
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-15
+
 ### Fixed
 
 - `_disaster-recovery.nix`: coerce nullable `boot.loader.systemd-boot.configurationLimit` (and `grub.configurationLimit`) to `0` before comparing with `cfg.minGenerations`. The `or 0` fallback only fires when an attribute is missing, not when it is present-but-null, so hosts that left the option unset triggered `cannot compare null with an integer` during eval. When neither bootloader sets a limit, the static probe now returns `passed = false` with `evidence.configurationLimit = 0` instead of crashing. (#14)
@@ -34,5 +36,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [Semantic V
 
 Initial release.
 
-[Unreleased]: https://github.com/arcanesys/nixfleet-compliance/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/arcanesys/nixfleet-compliance/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/arcanesys/nixfleet-compliance/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/arcanesys/nixfleet-compliance/releases/tag/v0.1.0
