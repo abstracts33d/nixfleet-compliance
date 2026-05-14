@@ -222,5 +222,6 @@ in {
 
     compliance.evidence.collector.interval = p cfg.auditCycle;
     compliance.check.enable = lib.mkDefault true;
+    compliance.schemaVersions.iso27001 = lib.mkDefault "iso27001/v1";
   };
 }

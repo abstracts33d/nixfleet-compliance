@@ -190,5 +190,6 @@ in {
 
     compliance.evidence.collector.interval = p cfg.auditCycle;
     compliance.check.enable = lib.mkDefault true;
+    compliance.schemaVersions.nis2 = lib.mkDefault "nis2/v1";
   };
 }
