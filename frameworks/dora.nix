@@ -173,5 +173,6 @@ in {
 
     compliance.evidence.collector.interval = p cfg.auditCycle;
     compliance.check.enable = lib.mkDefault true;
+    compliance.schemaVersions.dora = lib.mkDefault "dora/v1";
   };
 }

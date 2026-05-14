@@ -117,5 +117,6 @@ in {
 
     compliance.evidence.collector.interval = p "hourly";
     compliance.check.enable = lib.mkDefault true;
+    compliance.schemaVersions.anssi-bp028 = lib.mkDefault "anssi-bp028/v1";
   });
 }
