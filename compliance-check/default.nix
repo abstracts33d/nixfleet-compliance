@@ -4,7 +4,7 @@
 # `compliance-evidence-collector` systemd service writes (as root,
 # every NixOS activation + on the configurable interval).
 #
-# Closes abstracts33d/nixfleet-compliance#12. The previous shape
+# Closes #12. The previous shape
 # re-executed probes inline as the calling user — produced false
 # negatives whenever a probe needed root (sshd -T host key read,
 # auditctl -l, root-only filesystem reads). The collector solves
