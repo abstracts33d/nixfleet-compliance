@@ -29,8 +29,20 @@
 
         packages.nixfleet-compliance-tools = pkgs.callPackage ./tools {};
 
+        packages.docs-site =
+          pkgs.runCommand "nixfleet-compliance-docs-site" {
+            nativeBuildInputs = [pkgs.mdbook];
+          } ''
+            cp -r ${inputs.self} src
+            chmod -R u+w src
+            cd src
+
+            mdbook build docs/mdbook
+            cp -r docs/mdbook/book $out
+          '';
+
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [alejandra jq cargo rustc rustfmt clippy];
+          packages = with pkgs; [alejandra jq cargo rustc rustfmt clippy mdbook];
         };
       };
     };
