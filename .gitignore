@@ -1,6 +1,7 @@
 result
 result-*
 .direnv
+.worktrees/
 CLAUDE.md
 TODO.md
 *.local.bak
