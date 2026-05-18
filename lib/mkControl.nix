@@ -168,6 +168,54 @@
     map (rule: lib.nameValuePair rule.id (exclusionReason rule))
     (lib.filter (rule: !(cfg.rules.${rule.id}.enable)) rules)
   );
+
+  # Aggregate per-rule article maps into the control-level `articles`.
+  # Rules are the source of truth for ANSSI BP-028 (fine-grained:
+  # R7..R14 each map to a single rule inside _baseline-hardening,
+  # R33 maps to a single rule inside _audit-logging), so the control-
+  # level `articles` map must mirror the union of its rules'
+  # framework→articles entries — otherwise the agent's whole-framework
+  # probe (which keys on the control-level `frameworkArticles`) finds
+  # no controls covering ANSSI and the gate fails (incident at
+  # 18:03:22 lab activation, sustained-failure rollback).
+  #
+  # Rule articles keys are short names (`anssi`, `nis2`, …); the
+  # wire/probe lookup uses the framework's full name (`anssi-bp028`).
+  # `frameworkKeyMap` normalises the asymmetry at aggregation time so
+  # the rule-authoring shorthand stays concise while the emitted
+  # control-level map matches the agent's lookup key. Other frameworks
+  # are 1:1 between short name and wire name and pass through unchanged.
+  #
+  # The control's static `articles` (the `mkControl` argument) is the
+  # base; rule-aggregated articles add to it via per-framework union.
+  # An explicit empty-list entry in the static `articles` (e.g.
+  # `anssi-bp028 = []` on a single-script control) is preserved — the
+  # agent treats it as "control covers framework, no specific
+  # article" and emits one sub-result without an article.
+  frameworkKeyMap = {
+    anssi = "anssi-bp028";
+  };
+  normaliseFrameworkKey = k: frameworkKeyMap.${k} or k;
+  aggregatedRuleArticles = lib.foldl' (
+    acc: rule:
+      lib.foldl' (
+        acc2: shortKey: let
+          wireKey = normaliseFrameworkKey shortKey;
+          existing = acc2.${wireKey} or [];
+          incoming = rule.articles.${shortKey};
+        in
+          acc2 // {${wireKey} = lib.unique (existing ++ incoming);}
+      )
+      acc
+      (lib.attrNames (rule.articles or {}))
+  ) {} rules;
+  mergedArticles = lib.foldl' (
+    acc: k: let
+      existing = acc.${k} or [];
+      incoming = aggregatedRuleArticles.${k};
+    in
+      acc // {${k} = lib.unique (existing ++ incoming);}
+  ) articles (lib.attrNames aggregatedRuleArticles);
 in {
   imports = [
     ../governance/options.nix
@@ -193,7 +241,8 @@ in {
       _meta = lib.mkOption {
         type = lib.types.attrs;
         default = {
-          inherit controlId controlName controlDescription articles;
+          inherit controlId controlName controlDescription;
+          articles = mergedArticles;
           inherit exclusions;
           ruleCount = builtins.length rules;
           enabledRuleCount = builtins.length (lib.filter (rule: cfg.rules.${rule.id}.enable) rules);
@@ -215,7 +264,7 @@ in {
 
       compliance.evidence.probes.${controlId} = {
         control = controlName;
-        inherit articles;
+        articles = mergedArticles;
         check = aggregateProbe;
       };
     }

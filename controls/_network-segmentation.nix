@@ -113,6 +113,11 @@ in {
         dora = ["Art. 9"];
         secnumcloud = ["network"];
         nis2 = ["21(a)"];
+        # ANSSI BP-028: framework preset enables this as "Additional
+        # Controls" (docs/anssi-mapping.md, server hosts only) with
+        # no specific article; empty list = control covers framework,
+        # no article.
+        anssi-bp028 = [];
       };
       check = probeScript;
       staticEvidence = null;

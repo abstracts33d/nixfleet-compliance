@@ -158,6 +158,12 @@ in {
         nis2 = ["21(i)"];
         iso27001 = ["A.8.2" "A.8.3"];
         dora = ["Art. 9"];
+        # ANSSI BP-028: the framework preset enables this control as
+        # a general-hardening best practice (docs/anssi-mapping.md
+        # "Additional Controls") with no specific R-numbered article.
+        # Empty list signals "covers the framework, no article" to
+        # the agent's whole-framework probe.
+        anssi-bp028 = [];
       };
       check = probeScript;
       # Static predicate inspects the same NixOS sshd options the

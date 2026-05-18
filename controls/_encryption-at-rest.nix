@@ -137,6 +137,10 @@ in {
       articles = {
         nis2 = ["21(h)"];
         iso27001 = ["A.8.24"];
+        # ANSSI BP-028: framework preset enables this as "Additional
+        # Controls" (docs/anssi-mapping.md) with no specific article;
+        # empty list = control covers framework, no article.
+        anssi-bp028 = [];
       };
       check = probeScript;
       staticEvidence = null;
