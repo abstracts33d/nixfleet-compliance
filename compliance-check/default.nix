@@ -193,6 +193,12 @@
     total=0
     passed=0
     failed=0
+    # Canonical schema has no separate error status (probe-runner
+    # errors surface as passed=false with details.error), so this
+    # stays 0 in the default-branch flow. Initialised so the `-gt 0`
+    # tests below don't fire `[: : integer expected` on an unset
+    # variable — same shape the --live branch has at line 61.
+    errors=0
 
     while IFS=$'\t' read -r control control_passed frameworks; do
       [ -z "$control" ] && continue
