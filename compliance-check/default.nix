@@ -184,44 +184,37 @@
     fi
     echo ""
 
-    # Render the same per-control table compliance-check always has,
-    # sourced from JSON. controls[*].framework_articles is an attrset
-    # of {framework: [article-ids]}; we list the framework keys
-    # alphabetically (matches the legacy `articles | keys` output).
+    # Render the per-control table sourced from the canonical
+    # evidence.json (nixfleet_proto::evidence::EvidenceFile shape).
+    # controls[*].frameworkArticles is an attrset of {framework:
+    # [article-ids]}; we list the framework keys alphabetically.
+    # Probe-runner errors surface as passed=false with a `details.error`
+    # field (no separate "error" status in the canonical schema).
     total=0
     passed=0
     failed=0
-    errors=0
 
-    while IFS=$'\t' read -r control status frameworks; do
+    while IFS=$'\t' read -r control control_passed frameworks; do
       [ -z "$control" ] && continue
       total=$((total + 1))
-      case "$status" in
-        compliant)
+      case "$control_passed" in
+        true)
           printf "\033[32m  PASS\033[0m  %-30s (%s)\n" "$control" "$frameworks"
           passed=$((passed + 1))
           ;;
-        non-compliant)
+        false)
           printf "\033[31m  FAIL\033[0m  %-30s (%s)\n" "$control" "$frameworks"
           failed=$((failed + 1))
           if [ "''${VERBOSE:-}" = "1" ]; then
-            jq --arg c "$control" '.controls[] | select(.control == $c) | .checks' "$EVIDENCE" 2>/dev/null \
-              | jq -C '.' 2>/dev/null | sed 's/^/         /'
-          fi
-          ;;
-        error)
-          printf "\033[33m  ERR \033[0m  %-30s (%s) probe execution failed\n" "$control" "$frameworks"
-          errors=$((errors + 1))
-          if [ "''${VERBOSE:-}" = "1" ]; then
-            jq --arg c "$control" '.controls[] | select(.control == $c) | .checks' "$EVIDENCE" 2>/dev/null \
+            jq --arg c "$control" '.controls[] | select(.controlId == $c) | .details' "$EVIDENCE" 2>/dev/null \
               | jq -C '.' 2>/dev/null | sed 's/^/         /'
           fi
           ;;
         *)
-          printf "\033[35m  ?   \033[0m  %-30s (%s) unknown status: %s\n" "$control" "$frameworks" "$status"
+          printf "\033[35m  ?   \033[0m  %-30s (%s) unknown passed flag: %s\n" "$control" "$frameworks" "$control_passed"
           ;;
       esac
-    done < <(jq -r '.controls[] | [.control, .status, (.framework_articles | keys | sort | join(", "))] | @tsv' < "$EVIDENCE")
+    done < <(jq -r '.controls[] | [.controlId, (.passed | tostring), (.frameworkArticles | keys | sort | join(", "))] | @tsv' < "$EVIDENCE")
 
     echo ""
     echo "─────────────────────────────────"

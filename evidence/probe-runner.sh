@@ -5,6 +5,11 @@
 # then optionally signs the canonical bytes with the host SSH ed25519 key
 # and publishes the host public key alongside.
 #
+# Wire format: nixfleet_proto::evidence::EvidenceFile (schemaVersion=1)
+# — the framework owns the schema, this script conforms. Adding a field
+# is additive (existing consumers ignore unknowns); renaming or
+# removing a field bumps schemaVersion in lockstep with the proto.
+#
 # Arguments:
 #   $1 - output directory (default: /var/lib/nixfleet-compliance)
 #   $2 - probe directory (contains executable probe scripts)
@@ -24,7 +29,9 @@ timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 mkdir -p "$output_dir"
 
-# Collect all probe results
+# Collect all probe results. Each entry conforms to
+# nixfleet_proto::evidence::EvidenceControlEntry: { controlId, passed,
+# frameworkArticles, details? }.
 controls="[]"
 for probe in "$probe_dir"/*; do
   [ -x "$probe" ] || continue
@@ -42,63 +49,67 @@ for probe in "$probe_dir"/*; do
   if probe_output=$("$probe" 2>/dev/null); then
     # Validate probe output is valid JSON
     if ! echo "$probe_output" | jq empty >/dev/null 2>&1; then
-      status="error"
-      checks="{\"error\": \"probe output is not valid JSON\"}"
+      passed=false
+      details="{\"error\": \"probe output is not valid JSON\"}"
     else
       # Compliance status determination:
       # 1. If probe outputs a "compliant" boolean field, use it directly
       # 2. Otherwise, fall back to checking if any boolean is false
       explicit_status=$(echo "$probe_output" | jq -r 'if has("compliant") then .compliant else empty end' 2>/dev/null || echo "")
       if [ "$explicit_status" = "true" ]; then
-        status="compliant"
+        passed=true
       elif [ "$explicit_status" = "false" ]; then
-        status="non-compliant"
+        passed=false
       else
-        # Fallback: any top-level false boolean = non-compliant
-        status="compliant"
+        # Fallback: any top-level false boolean = non-compliant.
+        passed=true
         has_false=$(echo "$probe_output" | jq '[to_entries[] | select(.value == false)] | length' 2>/dev/null || echo "0")
         if [ "${has_false:-0}" -gt 0 ]; then
-          status="non-compliant"
+          passed=false
         fi
       fi
-      checks="$probe_output"
+      details="$probe_output"
     fi
   else
-    status="error"
-    checks="{\"error\": \"probe exited with code $?\"}"
+    # Probe exited non-zero: treat as failed compliance. The audit
+    # trail in `details` preserves the exit-code context.
+    passed=false
+    details="{\"error\": \"probe exited with code $?\"}"
   fi
 
-  # Build control entry
+  # Build one EvidenceControlEntry. `frameworkArticles` is the
+  # camelCase rename of the metadata's `articles` field (the proto
+  # owns the wire convention; the meta file pre-dates that).
   entry=$(jq -n \
-    --arg control "$control_name" \
-    --arg status "$status" \
-    --argjson articles "$(echo "$meta" | jq '.articles')" \
-    --argjson checks "$checks" \
-    '{control: $control, status: $status, framework_articles: $articles, checks: $checks}')
+    --arg controlId "$control_name" \
+    --argjson passed "$passed" \
+    --argjson frameworkArticles "$(echo "$meta" | jq '.articles')" \
+    --argjson details "$details" \
+    '{controlId: $controlId, passed: $passed, frameworkArticles: $frameworkArticles, details: $details}')
 
   controls=$(echo "$controls" | jq --argjson entry "$entry" '. + [$entry]')
 done
 
-# Compute overall status
-total=$(echo "$controls" | jq 'length')
-compliant=$(echo "$controls" | jq '[.[] | select(.status == "compliant")] | length')
-
-# Build final evidence envelope
+# Build the canonical EvidenceFile envelope.
 jq -n \
-  --arg host "$hostname" \
-  --arg timestamp "$timestamp" \
+  --arg hostname "$hostname" \
+  --arg collectedAt "$timestamp" \
   --argjson controls "$controls" \
-  --arg compliant "${compliant}/${total} controls compliant" \
   '{
-    host: $host,
-    timestamp: $timestamp,
-    controls: $controls,
-    overall: $compliant
+    schemaVersion: 1,
+    hostname: $hostname,
+    collectedAt: $collectedAt,
+    controls: $controls
   }' > "${output_dir}/evidence.json"
+
+# Operator-friendly summary printed to journal; not part of the
+# canonical schema.
+total=$(echo "$controls" | jq 'length')
+compliant=$(echo "$controls" | jq '[.[] | select(.passed == true)] | length')
 
 # 0644: the JSON is operator-visible state. Only this service
 # (running as root) writes; any user can read. compliance-check
-# and downstream consumers (future runtime gate in nixfleet) rely
+# and downstream consumers (nixfleet agent, auditor verifier) rely
 # on this - see #12.
 chmod 0644 "${output_dir}/evidence.json"
 

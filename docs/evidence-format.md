@@ -12,34 +12,53 @@ An auditor with `evidence.host.pub` can verify the chain offline using `nixfleet
 
 ## Format
 
+`evidence.json` is the canonical wire artifact. **This document is the authoritative spec**; emitters (`probe-runner.sh`) and consumers (this repo's `compliance-check` + `nixfleet-compliance-verify`, the `nixfleet-agent` evidence probe runner) all conform. The fixture at [`evidence-format-fixture.json`](./evidence-format-fixture.json) is a hand-crafted reference instance exercising every field; consumer round-trip tests reference it.
+
 ```json
 {
-  "host": "water-plant-01",
-  "timestamp": "2026-04-05T10:00:00Z",
+  "schemaVersion": 1,
+  "hostname": "water-plant-01",
+  "collectedAt": "2026-04-05T10:00:00Z",
   "controls": [
     {
-      "control": "baseline-hardening",
-      "status": "compliant",
-      "framework_articles": {
+      "controlId": "baseline-hardening",
+      "passed": true,
+      "frameworkArticles": {
         "nis2":     ["21(a)", "21(g)"],
         "iso27001": ["A.8.9", "A.8.8"]
       },
-      "checks": {
+      "details": {
         "BH-03": {"compliant": true, "checks_passed": 5,  "checks_total": 5},
         "BH-06": {"compliant": true, "checks_passed": 20, "checks_total": 20}
-      }
+      },
+      "schema": "anssi-bp028/v1"
     }
-  ],
-  "overall": "16/16 controls compliant"
+  ]
 }
 ```
 
+Top-level fields:
+
+- `schemaVersion` (`u32`, required) — wire-format version. Bumped on field removal or semantic change; additive fields keep this constant. Current: `1`.
+- `hostname` (`string`, required) — emitting host.
+- `collectedAt` (RFC 3339 UTC, required) — collector run timestamp.
+- `controls` (array, required) — one entry per evaluated control. Order is preserved by the producer; consumers MAY rely on stable ordering within a single collection but not across collections.
+
 Per-control entry:
 
-- `control` - slug identifying the control (matches the module name).
-- `status` - `compliant` | `non-compliant` | `error`.
-- `framework_articles` - regulatory anchors each framework preset maps the control to. The auditor's hook.
-- `checks` - per-rule breakdown of the control's predicates / probes.
+- `controlId` (`string`, required) — capability-named slug (e.g. `access-control`, `secure-boot`). Matches the `controlId` parameter of `lib/mkTypedControl.nix`. Stable across framework presets; one control maps to multiple framework articles.
+- `passed` (`bool`, required) — control-level aggregate. `true` iff every check in `details` passed. Probe-runner errors set `passed: false` and the failure context lands in `details.error`.
+- `frameworkArticles` (`object<string, string[]>`, optional, default `{}`) — framework → article-IDs map. Empty is legal (synthetic always-fail probe, framework-less smoke probe). One control typically covers multiple articles across multiple frameworks.
+- `details` (`object`, optional) — free-form per-rule probe output. Operator/auditor-facing detail; consumers MUST NOT use this for gating decisions (the gate reads `passed`). Schema-aware tools may decode this per the `schema` hint.
+- `schema` (`string`, optional) — typed-control schema hint, e.g. `"anssi-bp028/v1"`. Set when the producer used the typed-control pipeline (`lib/mkTypedControl.nix`). Auditor tools apply schema-specific decoders to `details`.
+
+## Versioning policy
+
+`schemaVersion` is the handshake. Additive changes (new optional fields) leave the version constant — emitters set the new field, consumers using `serde(default)` ignore it. Breaking changes (field removal, semantic change, type change) bump the version and require coordinated release of all consumers.
+
+Standalone operators emit `schemaVersion: 1`. NixFleet consumers reject any other value with a clear migration error pointing at the producer.
+
+The v0.2 retag supersedes the unreleased pre-v0.2.0 emit shape (`host`/`timestamp`/`status` enum string, no `schemaVersion` field). No production deployment ran the broken integration end-to-end; no migration path is preserved.
 
 ## JCS canonicalisation
 
