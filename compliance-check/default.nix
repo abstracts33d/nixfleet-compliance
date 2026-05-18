@@ -137,9 +137,9 @@
     fi
 
     # Staleness check.
-    timestamp=$(jq -r '.timestamp // empty' < "$EVIDENCE" 2>/dev/null || echo "")
+    timestamp=$(jq -r '.collectedAt // empty' < "$EVIDENCE" 2>/dev/null || echo "")
     if [ -z "$timestamp" ]; then
-      echo "compliance-check: evidence file has no timestamp - corrupt or pre-#12." >&2
+      echo "compliance-check: evidence file missing collectedAt — corrupt or pre-v0.2 schema." >&2
       echo "Re-run the collector: sudo systemctl start compliance-evidence-collector" >&2
       exit 2
     fi
@@ -153,7 +153,7 @@
     fi
 
     # Header
-    host=$(jq -r '.host // "unknown"' < "$EVIDENCE")
+    host=$(jq -r '.hostname // "unknown"' < "$EVIDENCE")
     echo "NixFleet Compliance Check"
     echo "========================="
     echo "Host: $host"
