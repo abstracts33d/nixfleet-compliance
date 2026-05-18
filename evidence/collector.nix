@@ -90,6 +90,18 @@ in {
       # coverage. `wantedBy = multi-user.target` also makes the
       # service start on every boot.
       wantedBy = ["multi-user.target"];
+      # Block nixfleet-agent's startup on the oneshot's completion so
+      # the agent never probes against a stale-schema evidence.json
+      # that survived a closure switch. Without this ordering both
+      # units restart in parallel on `switch-to-configuration`, and
+      # the agent's first 30s probe tick can fire while the collector
+      # is still running its probe scripts — the previous tick's
+      # file remains on disk, and a strict-parser agent (v0.2) fails
+      # 4 consecutive probes within the 120s sustained-failure
+      # threshold, triggering an unwanted rollback. Harmless on hosts
+      # without nixfleet-agent: systemd silently ignores Before/After
+      # pointing at units that don't exist.
+      before = ["nixfleet-agent.service"];
       # When signing is enabled, the host-key oneshot above guarantees
       # the ed25519 key exists before we run. Independent of sshd.
       after = lib.optionals cfg.sign.enable ["compliance-evidence-host-key.service"];
