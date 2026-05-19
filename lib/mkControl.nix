@@ -196,26 +196,30 @@
     anssi = "anssi-bp028";
   };
   normaliseFrameworkKey = k: frameworkKeyMap.${k} or k;
-  aggregatedRuleArticles = lib.foldl' (
-    acc: rule:
-      lib.foldl' (
-        acc2: shortKey: let
-          wireKey = normaliseFrameworkKey shortKey;
-          existing = acc2.${wireKey} or [];
-          incoming = rule.articles.${shortKey};
-        in
-          acc2 // {${wireKey} = lib.unique (existing ++ incoming);}
-      )
-      acc
-      (lib.attrNames (rule.articles or {}))
-  ) {} rules;
-  mergedArticles = lib.foldl' (
-    acc: k: let
-      existing = acc.${k} or [];
-      incoming = aggregatedRuleArticles.${k};
-    in
-      acc // {${k} = lib.unique (existing ++ incoming);}
-  ) articles (lib.attrNames aggregatedRuleArticles);
+  aggregatedRuleArticles =
+    lib.foldl' (
+      acc: rule:
+        lib.foldl' (
+          acc2: shortKey: let
+            wireKey = normaliseFrameworkKey shortKey;
+            existing = acc2.${wireKey} or [];
+            incoming = rule.articles.${shortKey};
+          in
+            acc2 // {${wireKey} = lib.unique (existing ++ incoming);}
+        )
+        acc
+        (lib.attrNames (rule.articles or {}))
+    ) {}
+    rules;
+  mergedArticles =
+    lib.foldl' (
+      acc: k: let
+        existing = acc.${k} or [];
+        incoming = aggregatedRuleArticles.${k};
+      in
+        acc // {${k} = lib.unique (existing ++ incoming);}
+    )
+    articles (lib.attrNames aggregatedRuleArticles);
 in {
   imports = [
     ../governance/options.nix
